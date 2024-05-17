@@ -1,0 +1,63 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: sprayproxy-test-pipeline
+spec:
+  description: "This pipeline creates a ROSA HCP cluster, registers the cluster with SprayProxy, runs tests, unregisters the cluster from SprayProxy, and then deletes the cluster."
+  tasks:
+    - name: produce-cluster-url
+      taskSpec:
+        results:
+          - name: cluster-url
+        steps:
+          - name: run-tests
+            image: quay.io/konflux-qe-incubator/konflux-qe-tools:latest
+            script: |
+              set -o errexit
+              set -o nounset
+              set -o pipefail
+              
+              host_url="https://$(uuidgen).example.com"
+              echo "$host_url" | tee $(results.cluster-url.path)
+    - name: register-pac-server
+      runAfter:
+        - produce-cluster-url
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/xinredhat/konflux-qe-definitions.git
+          - name: revision
+            value: sprayproxy
+          - name: pathInRepo
+            value: common/tasks/sprayproxy/register-server.yaml
+      params:
+        - name: host-url
+          value: "$(tasks.produce-cluster-url.results.cluster-url)"
+    - name: test
+      runAfter:
+        - register-pac-server
+      taskSpec:
+        steps:
+          - name: run-tests
+            image: quay.io/konflux-qe-incubator/konflux-qe-tools:latest
+            script: |
+              set -o errexit
+              set -o nounset
+              set -o pipefail
+              echo "Running tests..."
+    - name: unregister-pac-server
+      runAfter:
+        - test
+      taskRef:
+        resolver: git
+        params:
+          - name: url
+            value: https://github.com/xinredhat/konflux-qe-definitions.git
+          - name: revision
+            value: sprayproxy
+          - name: pathInRepo
+            value: common/tasks/sprayproxy/unregister-server.yaml
+      params:
+        - name: host-url
+          value: "$(tasks.produce-cluster-url.results.cluster-url)"

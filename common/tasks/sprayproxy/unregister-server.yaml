@@ -1,0 +1,52 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: unregister-cluster
+spec:
+  params:
+    - name: host-url
+      type: string
+      description: The webhook url of the cluster
+  steps:
+    - name: unregister
+      image: quay.io/konflux-qe-incubator/konflux-qe-tools:latest
+      env:
+        - name: SPRAYPROXY_SERVER_URL
+          valueFrom:
+            secretKeyRef:
+              name: sprayproxy-secrets
+              key: spray_server_url
+        - name: SPRAYPROXY_SERVER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: sprayproxy-secrets
+              key: spray_server_token
+      script: |
+        #!/usr/bin/env bash
+        set -o errexit
+        set -o nounset
+        set -o pipefail
+
+        unregister_pac_server(){
+          echo "Start unregistering PAC server [$(params.host-url)] from SprayProxy server"
+          for _ in {1..5}; do
+            if curl -k -X DELETE -H "Authorization: Bearer ${SPRAYPROXY_SERVER_TOKEN}" "${SPRAYPROXY_SERVER_URL}"/backends --data '{"url": "'"$(params.host-url)"'"}'; then
+              break
+            fi
+            sleep 5
+          done
+        }
+
+        list_pac_server(){
+          echo "List PAC server from SprayProxy server"
+          for _ in {1..5}; do
+            if curl -k -X GET -H "Authorization: Bearer ${SPRAYPROXY_SERVER_TOKEN}" "${SPRAYPROXY_SERVER_URL}"/backends; then
+              break
+            fi
+            sleep 5
+          done
+        }
+
+        unregister_pac_server
+        list_pac_server
