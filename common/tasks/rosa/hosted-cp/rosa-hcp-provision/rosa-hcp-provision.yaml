@@ -47,6 +47,7 @@ spec:
         set -o errexit
         set -o nounset
         set -o pipefail
+        set -x
 
         export ROSA_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY BILLING_ACCOUNT_ID AWS_OIDC_CONFIG_ID OPERATOR_ROLES_PREFIX \
               SUBNET_IDS INSTALL_ROLE_ARN SUPPORT_ROLE_ARN WORKER_ROLE_ARN REGION
