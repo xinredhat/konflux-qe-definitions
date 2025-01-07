@@ -25,7 +25,6 @@ The task can be triggered by different events (e.g., Pull Request, Push) and all
 | `repository-url`      | `string` | `""`          | URL of the source code repository (e.g., `github.com/org/repo`).                              |
 | `branch`              | `string` | `main`        | The Git branch to use (e.g., `main`, `feature-branch`).                                       |
 | `revision`            | `string` | -             | The Git revision (commit SHA).                                                                |
-| `test-event`          | `string` | `""`          | Indicates if the job is triggered by a Pull Request or Push event.                            |
 | `pull-request-number` | `string` | `""`          | The Pull Request number.                                                                      |
 | `target-branch`       | `string` | `main`        | The target branch for the Pull Request (e.g., `main`, `develop`).                             |
 | `oci-storage`         | `string` | -             | The OCI repository for storing the trusted artifacts.                                         |
