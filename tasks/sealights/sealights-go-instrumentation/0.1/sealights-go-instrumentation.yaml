@@ -58,10 +58,6 @@ spec:
     - name: revision
       type: string
       description: "The Git revision (commit SHA) from which the test pipeline is originating."
-    - name: test-event
-      type: string
-      description: "Indicates if the job is triggered by a Pull Request or a Push event."
-      default: ""
     - name: pull-request-number
       type: string
       description: "The identifier number of the pull request/merge request."
@@ -112,8 +108,10 @@ spec:
         - name: TARGET_BRANCH
           value: $(params.target-branch)
         - name: TEST_EVENT
-          value: $(params.test-event)
-      args: ["$(params.packages-excluded[*])"] 
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pipelinesascode.tekton.dev/event-type']
+      args: ["$(params.packages-excluded[*])"]
       script: |
         #!/bin/sh
         set -euo pipefail
@@ -129,12 +127,19 @@ spec:
 
         slcli config init --lang go --token "${SEALIGHTS_TOKEN}"
 
-        if [[ -n "${TEST_EVENT}" && "${TEST_EVENT}" == "pull_request" ]]; then
-          echo "[INFO] Generate build session id from a Pull Request source code"
+        # In case is coming from /retest event then it's a pull_request
+        # if event type is not push and pull_request_number is not empty then is a pull_request
+        echo "[INFO] Tekton Event Type received: ${TEST_EVENT}"
+        if [ "$TEST_EVENT" != "push" ] && [ -n "$PULL_REQUEST_NUMBER" ]; then
+          TEST_EVENT="pull_request"
+        fi
+
+        if [ -n "${TEST_EVENT}" ] && [ "${TEST_EVENT}" = "pull_request" ]; then
+          echo "[INFO] Creating build session id from a ${TEST_EVENT} event source code: [ component: ${COMPONENT}, target-branch: ${TARGET_BRANCH}, pull-request-number ${PULL_REQUEST_NUMBER}, latest-commit: ${REVISION} ]"
           slcli config create-pr-bsid --app "${COMPONENT}" --target-branch "${TARGET_BRANCH}" \
             --pull-request-number "${PULL_REQUEST_NUMBER}" --latest-commit "${REVISION}" --repository-url "${REPOSITORY_URL}"
         else
-          echo "[INFO] Creating build session ID (BSID) for app: ${COMPONENT}, branch: ${BRANCH}, build: ${BUILD_NAME}..."
+          echo "[INFO] Creating build session ID (BSID) ${TEST_EVENT} event source code [ component: ${COMPONENT}, branch: ${BRANCH}, build: ${BUILD_NAME} ]"
           slcli config create-bsid --app "${COMPONENT}" --branch "${BRANCH}" --build "${BUILD_NAME}"
         fi
 
