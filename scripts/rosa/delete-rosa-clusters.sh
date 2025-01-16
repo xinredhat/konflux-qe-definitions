@@ -69,27 +69,43 @@ delete_load_balancers() {
         tags=$(aws --region "$AWS_DEFAULT_REGION" elbv2 describe-tags --resource-arns "$lb_arn" --query "TagDescriptions[*].Tags[?Key=='$LB_TAG_KEY'&&Value=='$lb_tag_value'].Value" --output text)
         
         if [[ "$tags" == "$lb_tag_value" ]]; then
-
             echo "[INFO] Deleting ELBv2 Load Balancer with ARN: $lb_arn"
             aws --region "$AWS_DEFAULT_REGION" elbv2 delete-load-balancer --load-balancer-arn "$lb_arn"
-
-            echo "[INFO] Deleting Target Groups associated with Load Balancer ARN: $lb_arn"
-            delete_target_groups_for_lb "$lb_arn"
         fi
     done
 }
 
-delete_target_groups_for_lb() {
-    local lb_arn=$1
-    local tg_arns
+delete_target_groups() {
+    TODAY=$(date -u -d '24 hours ago' +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Get target groups associated with the specified load balancer
-    tg_arns=$(aws elbv2 describe-target-groups --region "$AWS_DEFAULT_REGION" \
-        --query "TargetGroups[?LoadBalancerArns[0] == '$lb_arn'].TargetGroupArn" --output text)
+    ALL_TARGET_GROUPS=$(aws elbv2 describe-target-groups --region "$AWS_DEFAULT_REGION" --query 'TargetGroups[*].TargetGroupArn' --output text)
 
-    for tg_arn in $tg_arns; do
-        echo "[INFO] Deleting Target Group with ARN: $tg_arn (associated with Load Balancer ARN: $lb_arn)"
-        aws elbv2 delete-target-group --target-group-arn "$tg_arn" --region "$AWS_DEFAULT_REGION"
+    TODAYS_TARGET_GROUPS=$(aws cloudtrail lookup-events \
+        --region "$AWS_DEFAULT_REGION" \
+        --lookup-attributes AttributeKey=EventName,AttributeValue=CreateTargetGroup \
+        --start-time "$TODAY" \
+        --query 'Events[*].Resources[?ResourceType==`AWS::ElasticLoadBalancingV2::TargetGroup`].ResourceName' \
+        --output text)
+
+    TODAYS_TARGET_GROUP_ARRAY=($TODAYS_TARGET_GROUPS)
+
+    # Loop through all target groups
+    for TG_ARN in $ALL_TARGET_GROUPS; do
+        # Fetch tags for the current target group
+        IS_KONFLUX_CI_TAG=$(aws elbv2 describe-tags --region "$REGION" --resource-arns "$TG_ARN" \
+            --query "TagDescriptions[0].Tags[?Key=='konflux-ci'&&Value=='true'].Value" --output text)
+
+        if [[ "$IS_KONFLUX_CI_TAG" == "true" ]]; then
+            # Check if the target group was created today
+            if [[ ! " ${TODAYS_TARGET_GROUP_ARRAY[@]} " =~ " ${TG_ARN} " ]]; then
+                echo "Deleting target group: $TG_ARN (tagged 'konflux-ci=true' and not created today)"
+                aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region "$REGION"
+            else
+                echo "Skipping target group: $TG_ARN (created today)"
+            fi
+        else
+            echo "Skipping target group: $TG_ARN (does not have the tag 'konflux-ci=true')"
+        fi
     done
 }
 
@@ -124,8 +140,9 @@ delete_old_clusters() {
 main() {
     check_env_vars
     check_required_tools
-
     rosa login --token="${ROSA_TOKEN}"
+
+    delete_target_groups
 
     local cluster_list
     cluster_list=$(rosa list clusters --all -o json)
