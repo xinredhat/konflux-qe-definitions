@@ -92,14 +92,14 @@ delete_target_groups() {
     # Loop through all target groups
     for TG_ARN in $ALL_TARGET_GROUPS; do
         # Fetch tags for the current target group
-        IS_KONFLUX_CI_TAG=$(aws elbv2 describe-tags --region "$REGION" --resource-arns "$TG_ARN" \
+        IS_KONFLUX_CI_TAG=$(aws elbv2 describe-tags --region "$AWS_DEFAULT_REGION" --resource-arns "$TG_ARN" \
             --query "TagDescriptions[0].Tags[?Key=='konflux-ci'&&Value=='true'].Value" --output text)
 
         if [[ "$IS_KONFLUX_CI_TAG" == "true" ]]; then
             # Check if the target group was created today
             if [[ ! " ${TODAYS_TARGET_GROUP_ARRAY[@]} " =~ " ${TG_ARN} " ]]; then
                 echo "Deleting target group: $TG_ARN (tagged 'konflux-ci=true' and not created today)"
-                aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region "$REGION"
+                aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region "$AWS_DEFAULT_REGION"
             else
                 echo "Skipping target group: $TG_ARN (created today)"
             fi
