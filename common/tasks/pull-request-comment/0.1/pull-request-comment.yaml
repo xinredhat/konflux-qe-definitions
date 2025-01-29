@@ -144,7 +144,14 @@ spec:
             exit 0
         fi
 
-        export INTEGRATION_TEST_CONSOLE_URL="${BUILD_CONSOLE_URL%/*}/$(params.test-name)"
+        # Construct build/integration console url based on whether we are running this task inside build-definitions build pipeline or konflux integration test pipeline
+        if [ -z "${BUILD_CONSOLE_URL}" ]; then
+          echo "[INFO] Task is running inside build-definitions build pipeline"
+          export BUILD_CONSOLE_URL="$(oc whoami --show-console)/k8s/ns/konflux-ci/tekton.dev~v1~PipelineRun/$(params.test-name)"
+          export INTEGRATION_TEST_CONSOLE_URL="${BUILD_CONSOLE_URL}/logs?taskName=e2e-tests"
+        else
+          export INTEGRATION_TEST_CONSOLE_URL="${BUILD_CONSOLE_URL%/*}/$(params.test-name)"
+        fi
 
         # Store the content of the test results analysis (from a previous step) in a variable
         TEST_RESULTS_ANALYSIS=$(cat analysis.md || echo "\<not enabled\>")
