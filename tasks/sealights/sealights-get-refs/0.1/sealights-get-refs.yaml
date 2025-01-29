@@ -60,7 +60,7 @@ spec:
         SL_SOURCE_ARTIFACT="$(jq -r \
             '.payload | @base64d | fromjson | .predicate.buildConfig.tasks[] |
             select(.invocation.environment.labels."konflux-ci/sealights" == "true")
-            | .results[] | select(.name == "source-artifact") | .value' \
+            | .results[] | select(.name == "SOURCE_ARTIFACT") | .value' \
             cosign_metadata.json)"
 
         SL_CONTAINER_IMAGE="$(jq -r \
