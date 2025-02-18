@@ -4,6 +4,9 @@ metadata:
   name: trigger-jenkins-job
   labels:
     app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: konflux
 spec:
   description: >-
     The following task can be used to trigger a Jenkins job using
