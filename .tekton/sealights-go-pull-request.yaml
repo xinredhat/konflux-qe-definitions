@@ -24,11 +24,11 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/rh-konflux-devprod-tenant/sealights-go:on-pr-{{revision}}
+    value: quay.io/konflux-ci/tekton-integration-catalog/sealights-go:on-pr-{{revision}}
   - name: image-expires-after
     value: 5d
   - name: dockerfile
-    value: dockerfiles/sealights/go
+    value: dockerfiles/sealights/go/Dockerfile
   pipelineSpec:
     description: |
       This pipeline is ideal for building container images from a Containerfile while maintaining trust after pipeline customization.
