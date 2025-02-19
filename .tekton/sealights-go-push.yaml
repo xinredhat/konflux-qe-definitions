@@ -8,7 +8,7 @@ metadata:
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
-      == "main" && ( "dockerfiles/sealights/go/***".pathChanged() || ".tekton/sealights-go-push.yaml".pathChanged() )
+      == "main" && ( "konflux/sealights-agents/go/***".pathChanged() || ".tekton/sealights-go-push.yaml".pathChanged() )
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: sealights-containers
@@ -25,7 +25,7 @@ spec:
   - name: output-image
     value: quay.io/konflux-ci/tekton-integration-catalog/sealights-go:{{revision}}
   - name: dockerfile
-    value: dockerfiles/sealights/go/Dockerfile
+    value: konflux/sealights-agents/go/Dockerfile
   pipelineSpec:
     description: |
       This pipeline is ideal for building container images from a Containerfile while maintaining trust after pipeline customization.
