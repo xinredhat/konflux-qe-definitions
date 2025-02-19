@@ -1,5 +1,7 @@
 FROM registry.redhat.io/ubi9/go-toolset:latest
 
+LABEL konflux.additional-tags="latest"
+
 USER root
 
 # Installs Sealights Go agent and Sealights CLI
