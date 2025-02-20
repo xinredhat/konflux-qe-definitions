@@ -1,3 +1,0 @@
-# Yamllint task
-
-WIP

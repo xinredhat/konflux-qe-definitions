@@ -211,7 +211,7 @@ spec:
 
         for arn in $all_arns; do
             arns_to_delete+=($arn)
-            
+
             if [ ${#arns_to_delete[@]} -eq $batch_size ]; then
                 aws elbv2 describe-tags --resource-arns ${arns_to_delete[@]} \
                 --query "TagDescriptions[?Tags[?Key=='$ELB_TAG_KEY' && Value=='$ELB_TAG_VALUE']].ResourceArn" --output text | while read matched_arn; do

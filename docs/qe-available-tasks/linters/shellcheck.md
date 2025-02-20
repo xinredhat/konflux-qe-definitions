@@ -1,3 +1,0 @@
-# ShellCheck task
-
-WIP

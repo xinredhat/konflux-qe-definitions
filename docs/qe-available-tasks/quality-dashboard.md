@@ -1,3 +1,0 @@
-# Quality Dashboard Task
-
-WIP

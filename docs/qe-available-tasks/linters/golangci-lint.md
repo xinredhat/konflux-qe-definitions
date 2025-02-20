@@ -1,3 +1,0 @@
-# GolangCI Lint Task
-
-WIP

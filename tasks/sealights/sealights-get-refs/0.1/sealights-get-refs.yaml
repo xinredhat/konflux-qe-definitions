@@ -5,6 +5,10 @@ metadata:
   name: sealights-get-refs
   labels:
     konflux-ci/sealights: "true"
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: konflux
 spec:
   description: |
     The sealights-get-refs Task is responsible for retrieving metadata associated with Sealights
