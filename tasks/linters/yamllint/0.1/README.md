@@ -39,7 +39,7 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: common/tasks/test-metadata/test-metadata.yaml
+            value: tasks/test-metadata/0.1/test-metadata.yaml
       params:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
@@ -56,9 +56,9 @@ spec:
           - name: url
             value: https://github.com/konflux-ci/tekton-integration-catalog.git
           - name: revision
-            value: yamllint
+            value: main
           - name: pathInRepo
-            value: common/tasks/linters/yamllint/yaml-lint.yaml
+            value: tasks/linters/yamllint/0.1/yaml-lint.yaml
       params:
         - name: git-url
           value: "$(tasks.test-metadata.results.git-url)"

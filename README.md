@@ -2,7 +2,7 @@
 
 ## 👋 Introduction
 
-Welcome to the **Tekton Integration Catalog**! This repository contains a collection of Tekton resources and helpers designed to simplify integration testing in **Konflux CI**. The goal is to make tests **easier to run, manage, and automate**, ensuring efficient across Konflux Integration Tests System.
+Welcome to the **Tekton Integration Catalog**! This repository contains a collection of Tekton resources and helpers designed to simplify integration testing in **Konflux CI**. The goal is to make tests **easier to run, manage, and automate**, ensuring efficiency across Konflux Integration Tests System.
 
 With prebuilt Tekton Tasks and StepActions, this catalog provides reusable components that help integrate and validate application components. By leveraging these resources, teams can streamline their testing processes and focus on delivering high-quality software.
 
@@ -15,7 +15,7 @@ This repository is organized into several key directories, each serving a specif
 The **Tekton Tasks** directory contains reusable tasks that define individual steps in your pipeline.
 
 - **Adding a New Task**:
-   To add a new task, create a `.yaml` file inside the `tasks` directory. Ensure it follows the Tekton [Task specification](https://tekton.dev/docs/pipelines/tasks/), is well-documented, [well-versioned](#-versioning) and includes example usage.
+   To add a new task, create a `.yaml` file inside the `tasks/<your-task-name>/0.1/` directory. Ensure it follows the Tekton [Task specification](https://tekton.dev/docs/pipelines/tasks/), is well-documented (add `README.md` file), [well-versioned](#-versioning) and includes example usage.
 
 ### 🔄 StepActions
 

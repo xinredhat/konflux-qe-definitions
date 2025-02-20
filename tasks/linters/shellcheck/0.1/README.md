@@ -39,7 +39,7 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: common/tasks/test-metadata/test-metadata.yaml
+            value: tasks/test-metadata/0.1/test-metadata.yaml
       params:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
@@ -58,7 +58,7 @@ spec:
           - name: revision
             value: main
           - name: pathInRepo
-            value: common/tasks/linters/shellcheck/shellcheck.yaml
+            value: tasks/linters/shellcheck/0.1/shellcheck.yaml
       params:
         - name: git-url
           value: "$(tasks.test-metadata.results.git-url)"

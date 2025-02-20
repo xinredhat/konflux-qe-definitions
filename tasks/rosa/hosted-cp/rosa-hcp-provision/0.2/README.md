@@ -1,4 +1,6 @@
-# ROSA HCP Provision - Tekton Task
+# ROSA HCP Provision
+
+**Version:** 0.2
 
 ## Overview
 
