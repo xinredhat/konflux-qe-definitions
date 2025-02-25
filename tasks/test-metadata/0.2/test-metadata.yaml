@@ -119,23 +119,13 @@ spec:
 
           cosign download attestation "$COMPONENT_CONTAINER_IMAGE" > cosign_metadata.json
 
-          OCI_STORAGE_LOCATION=$(jq -r '
-            .payload | @base64d | fromjson | .predicate.buildConfig.tasks[] |
-            select(.name == "prefetch-dependencies") | .invocation.parameters.ociStorage' cosign_metadata.json)
+          CACHI2_SOURCE_ARTIFACT="$(jq -r \
+            '.payload | @base64d | fromjson | .predicate.buildConfig.tasks[] |
+            select(.name == "prefetch-dependencies") | .results[] | select(.name == "CACHI2_ARTIFACT") | .value' \
+            cosign_metadata.json)"
+          
+          echo "[INFO] Cachi2 source artifact: $CACHI2_SOURCE_ARTIFACT"
 
-          echo "[INFO] OCI storage location: $OCI_STORAGE_LOCATION"
-
-          OCI_STORAGE_DIGEST=$(oras discover "$OCI_STORAGE_LOCATION" | grep -E 'sha256:[a-f0-9]{64}' | head -1)
-
-          echo "[INFO] OCI storage digest: $OCI_STORAGE_DIGEST"
-
-          CACHI2_ARTIFACT_DIGEST=$(oras manifest fetch "$OCI_STORAGE_DIGEST" | jq -r '
-            .layers[] | select(.annotations["org.opencontainers.image.title"] == "CACHI2_ARTIFACT") | .digest // empty')
-
-          OCI_REPOSITORY=$(echo "$OCI_STORAGE_DIGEST" | sed 's/@.*//')
-          FULL_OCI_ARTIFACT_PATH="$OCI_REPOSITORY@$CACHI2_ARTIFACT_DIGEST"
-          echo "[INFO] Full OCI Artifact Path: $FULL_OCI_ARTIFACT_PATH"
-
-          echo -n "oci:$FULL_OCI_ARTIFACT_PATH" > $(results.prefetch.path)
+          echo -n "$CACHI2_SOURCE_ARTIFACT" > $(results.prefetch-artifact.path)
           
         fi
