@@ -23,7 +23,7 @@ ARG SHELLCHECK_VERSION=stable
 # renovate: datasource=github-releases depName=golangci/golangci-lint
 ARG GOLANGCI_LINT_VERSION="v1.59.0"
 
-ARG LEAKTK_TAG="v0.0.13"
+ARG LEAKTK_TAG="v0.0.16"
 
 RUN curl -L "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" -o /usr/local/bin/cosign && \
     chmod +x /usr/local/bin/cosign && \
