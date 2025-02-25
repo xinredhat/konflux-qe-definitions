@@ -1,8 +1,6 @@
 # Builder
 FROM registry.redhat.io/ubi9/go-toolset@sha256:c9c0129bff8e94b9e23e9e4a1ebb5b932cccc24e064940a792bdc002da512d2a AS builder
 
-LABEL konflux.additional-tags="latest"
-
 USER root
 
 # renovate: datasource=repology depName=homebrew/openshift-cli
@@ -82,6 +80,8 @@ RUN curl -LO https://raw.githubusercontent.com/leaktk/hack/b41569b3bbed867eabd15
 
 # Runnable
 FROM registry.access.redhat.com/ubi9/ubi:9.3-1610@sha256:66233eebd72bb5baa25190d4f55e1dc3fff3a9b77186c1f91a0abdb274452072
+
+LABEL konflux.additional-tags="latest"
 
 ENV HOME=/home/tool-box
 
