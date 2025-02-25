@@ -8,7 +8,9 @@ USER root
 # renovate: datasource=repology depName=homebrew/openshift-cli
 ARG OC_VERSION=4.15.9
 # renovate: datasource=github-releases depName=openshift/rosa
-ARG ROSA_VERSION=v1.2.47
+ARG ROSA_VERSION=v1.2.50
+# renovate: datasource=github-releases depName=openshift-online/ocm-cli
+ARG OCM_VERSION=v1.0.3
 # renovate: datasource=github-releases depName=stedolan/jq
 ARG JQ_VERSION=1.6
 # renovate: datasource=github-releases depName=mikefarah/yq
@@ -48,6 +50,11 @@ RUN curl -L "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/$
     mv rosa /usr/local/bin && \
     rosa version
 
+RUN curl -Lso ocm https://github.com/openshift-online/ocm-cli/releases/download/${OCM_VERSION}/ocm-linux-amd64 && \
+    chmod +x ocm && \
+    mv ocm /usr/local/bin && \
+    ocm version
+
 RUN curl -L "https://github.com/stedolan/jq/releases/download/jq-${JQ_VERSION}/jq-linux64" -o /usr/local/bin/jq  && \
     chmod +x /usr/local/bin/jq && \
     jq --version
@@ -55,6 +62,7 @@ RUN curl -L "https://github.com/stedolan/jq/releases/download/jq-${JQ_VERSION}/j
 RUN curl -L "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64" -o /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq && \
     yq --version
+
 RUN curl -LO "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" && \
     mkdir -p oras-install/ && \
     tar -zxf oras_${ORAS_VERSION}_*.tar.gz -C oras-install/ && \
@@ -86,6 +94,7 @@ RUN dnf -y update && \
 COPY --from=builder /usr/local/bin/oc /usr/local/bin/oc
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/rosa /usr/local/bin/rosa
+COPY --from=builder /usr/local/bin/ocm /usr/local/bin/ocm
 COPY --from=builder /usr/local/bin/jq /usr/local/bin/jq
 COPY --from=builder /usr/local/bin/yq /usr/local/bin/yq
 COPY --from=builder /usr/local/bin/oras /usr/local/bin/oras
