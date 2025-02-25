@@ -12,12 +12,18 @@ spec:
   results:
     - name: job-spec
       description: The konflux ci job spec metadata generated.
+    - name: prefetch-artifact
+      description: The OCI artifact that contains the prefetch dependencies generated during the build phase.
   params:
     - name: SNAPSHOT
       description: The JSON string of the Snapshot under test.
     - name: test-name
       type: string
       description: The name of the test being executed.
+    - name: enable-prefetch
+      type: bool
+      description: Flag to indicate whether to retrieve the OCI artifact associated with the prefetching operation from the build phase. If set to true, the artifact's digest will be fetched.
+      default: false
   steps:
     - name: test-metadata
       image: quay.io/konflux-qe-incubator/konflux-qe-tools:latest
@@ -25,6 +31,8 @@ spec:
       env:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
+        - name: ENABLE_PREFETCH
+          value: $(params.enable-prefetch)
         - name: EVENT_TYPE
           valueFrom:
             fieldRef:
@@ -106,3 +114,28 @@ spec:
 
         # Write job-spec to result file
         echo -n "$JOB_SPEC" > $(results.job-spec.path)
+
+        if [ "$ENABLE_PREFETCH" == "true" ]; then
+
+          cosign download attestation "$COMPONENT_CONTAINER_IMAGE" > cosign_metadata.json
+
+          OCI_STORAGE_LOCATION=$(jq -r '
+            .payload | @base64d | fromjson | .predicate.buildConfig.tasks[] |
+            select(.name == "prefetch-dependencies") | .invocation.parameters.ociStorage' cosign_metadata.json)
+
+          echo "[INFO] OCI storage location: $OCI_STORAGE_LOCATION"
+
+          OCI_STORAGE_DIGEST=$(oras discover "$OCI_STORAGE_LOCATION" | grep -E 'sha256:[a-f0-9]{64}' | head -1)
+
+          echo "[INFO] OCI storage digest: $OCI_STORAGE_DIGEST"
+
+          CACHI2_ARTIFACT_DIGEST=$(oras manifest fetch "$OCI_STORAGE_DIGEST" | jq -r '
+            .layers[] | select(.annotations["org.opencontainers.image.title"] == "CACHI2_ARTIFACT") | .digest // empty')
+
+          OCI_REPOSITORY=$(echo "$OCI_STORAGE_DIGEST" | sed 's/@.*//')
+          FULL_OCI_ARTIFACT_PATH="$OCI_REPOSITORY@$CACHI2_ARTIFACT_DIGEST"
+          echo "[INFO] Full OCI Artifact Path: $FULL_OCI_ARTIFACT_PATH"
+
+          echo -n "oci:$FULL_OCI_ARTIFACT_PATH" > $(results.prefetch.path)
+          
+        fi
