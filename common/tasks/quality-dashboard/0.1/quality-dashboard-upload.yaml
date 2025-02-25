@@ -80,25 +80,25 @@ spec:
         }
         EOF
         )
-        
+
         # Write the metadata JSON to a file
         echo "$METADATA_JSON" > metadata.json
 
         # Debug output: display the content of metadata.json
         echo "[INFO] metadata.json content:"
         cat metadata.json
-        
+
         # Pull test artifacts from the ORAS container
         oras pull "$(params.oci-container)"
-        
+
         # Look for report files (either "qd-report" or "e2e-report")
         QD_REPORT_FILENAME=$(find ./ -name "qd-report*" | head -1)
         if [ -z "$QD_REPORT_FILENAME" ]; then
-            QD_REPORT_FILENAME=$(find ./ -name "e2e-report*" | head -1)
+            QD_REPORT_FILENAME=$(find ./ -name "e2e-report*.xml" | head -1)
         fi
 
         echo "[INFO] Report filename: $QD_REPORT_FILENAME"
-        
+
         # Upload the metadata and report to the quality dashboard
         curl -F "metadata=@./metadata.json" \
           -F "xunit=@$QD_REPORT_FILENAME" \
