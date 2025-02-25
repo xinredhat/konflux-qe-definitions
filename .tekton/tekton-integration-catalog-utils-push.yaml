@@ -8,7 +8,8 @@ metadata:
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
-      == "main"
+      == "main" && ( "konflux/tekton-integration-catalog-utils/tekton-integration-catalog-utils/***".pathChanged() 
+      || ".tekton/tekton-integration-catalog-utils-push.yaml".pathChanged() )
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: tekton-integration-catalog-utils
@@ -23,7 +24,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/rh-konflux-devprod-tenant/tekton-integration-catalog-utils:{{revision}}
+    value: quay.io/konflux-ci/tekton-integration-catalog/utils:{{revision}}
   - name: dockerfile
     value: konflux/tekton-integration-catalog-utils/tekton-integration-catalog-utils/Dockerfile
   - name: path-context

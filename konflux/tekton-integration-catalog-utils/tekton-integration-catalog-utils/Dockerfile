@@ -1,6 +1,8 @@
 # Builder
 FROM registry.redhat.io/ubi9/go-toolset@sha256:c9c0129bff8e94b9e23e9e4a1ebb5b932cccc24e064940a792bdc002da512d2a AS builder
 
+LABEL konflux.additional-tags="latest"
+
 USER root
 
 # renovate: datasource=repology depName=homebrew/openshift-cli
