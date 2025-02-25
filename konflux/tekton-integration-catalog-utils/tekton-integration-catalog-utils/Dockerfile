@@ -23,7 +23,7 @@ ARG SHELLCHECK_VERSION=stable
 # renovate: datasource=github-releases depName=golangci/golangci-lint
 ARG GOLANGCI_LINT_VERSION="v1.59.0"
 
-ARG LEAKTK_TAG="v0.0.16"
+ARG LEAKTK_VERSION="0.0.16"
 
 RUN curl -L "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" -o /usr/local/bin/cosign && \
     chmod +x /usr/local/bin/cosign && \
@@ -71,8 +71,9 @@ RUN curl -LO "https://github.com/oras-project/oras/releases/download/v${ORAS_VER
 RUN curl -L https://github.com/tektoncd/cli/releases/download/v0.32.2/tkn_0.32.2_Linux_x86_64.tar.gz | tar -xz --no-same-owner -C /usr/local/bin/ tkn && \
     tkn version
 
-ENV GOBIN=/usr/local/bin/
-RUN git clone --depth 1 --branch "${LEAKTK_TAG}" https://github.com/leaktk/scanner && cd scanner && make build && mv leaktk-scanner /usr/local/bin/
+RUN curl -L "https://github.com/leaktk/scanner/releases/download/v${LEAKTK_VERSION}/leaktk-scanner-${LEAKTK_VERSION}-linux-x86_64.tar.xz" | tar -xJf - && \
+    mv leaktk-scanner /usr/local/bin && \
+    leaktk-scanner version
 
 # Removes files found in leaktk-scanner --kind Files scans
 # https://github.com/leaktk/hack/commit/b41569b3bbed867eabd15649f6650ae506c8cfc5
