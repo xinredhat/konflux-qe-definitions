@@ -1,0 +1,58 @@
+apiVersion: tekton.dev/v1beta1
+kind: StepAction
+metadata:
+  name: pick-cluster-version
+spec:
+  description: >-
+    This StepAction selects a cluster version for provisioning. It determines the target OCP version of an FBC fragment.
+    The version is returned if it is included in the list of supported Hypershift cluster versions.
+  image: quay.io/redhat-appstudio/konflux-test:v1.4.18@sha256:78c76869d0b171e9bfa5e931e5e6ecbe92b32f61c6ec627c57cbb9d1aad75aab
+  params:
+    - name: fbcFragment
+      type: string
+      description: "An FBC fragment image."
+    - name: clusterVersions
+      type: array
+      description: "List of supported minor versions."
+  results:
+    - name: ocpVersion
+      description: "OCP version for cluster provisioning."
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    . /utils.sh
+
+    # Read parameters
+    FBC_FRAGMENT="$1"
+    shift
+    CLUSTER_VERSIONS=("$@")
+
+    # Validate inputs
+    if [ -z "$FBC_FRAGMENT" ]; then
+      echo "ERROR: fbcFragment parameter is required!" >&2
+      exit 1
+    fi
+
+    if [ ${#CLUSTER_VERSIONS[@]} -eq 0 ]; then
+      echo "ERROR: clusterVersions parameter is required and cannot be empty!" >&2
+      exit 1
+    fi
+    echo "Cluster versions: ${CLUSTER_VERSIONS[*]}"
+
+    if ! ocp_version=$(get_ocp_version_from_fbc_fragment "$FBC_FRAGMENT"); then
+      echo "ERROR: Failed to determine target OCP version from FBC fragment." >&2
+      exit 1
+    fi
+    echo "Target OCP version: $ocp_version"
+    
+    # Check if the OCP version exists in the cluster supported versions list
+    if printf "%s\n" "${CLUSTER_VERSIONS[@]}" | grep -Fxq "$ocp_version"; then
+      echo "$ocp_version" > "$(step.results.ocpVersion.path)"
+      echo "OCP version '$ocp_version' is in the cluster supported versions list."
+    else
+      echo "OCP version '$ocp_version' is NOT in the list of cluster supported versions: ${CLUSTER_VERSIONS[*]}" >&2
+      exit 1
+    fi
+  args:
+    - "$(params.fbcFragment)"
+    - "$(params.clusterVersions[*])"
