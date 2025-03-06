@@ -4,7 +4,7 @@
 # of the "konflux-ci" tag. It then evaluates the creation date of clusters
 # to determine if they are older than 4 hours and, if so, deletes the cluster including related subnet tags and load balancers.
 
-TIME_THRESHOLD_SECONDS=${TIME_THRESHOLD_SECONDS:-172800} ## rhopp temporarily increased to 2 days due to https://issues.redhat.com/browse/OHSS-41374
+TIME_THRESHOLD_SECONDS=${TIME_THRESHOLD_SECONDS:-14400}
 MAX_RETRIES=5
 LB_TAG_KEY="api.openshift.com/id"
 
