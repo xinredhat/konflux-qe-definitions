@@ -84,7 +84,7 @@ show_help() {
     echo "  --konflux-component-name <name>    Konflux component name where the Integration Test scenario will be executed."
     echo
     echo "Optional flags:"
-    echo "  --schedule <time>                  Time format: Nd, Nh, Nm (e.g., 5d, 3h, 30m). This value must match the schedule format used in CronJobs."
+    echo "  --schedule <time>                  Time format: Nd, Nh, Nm (e.g., 5d, 3h, 30m). This value must match the schedule format used in CronJobs. For example Cronjob schedule: 0 0 */2 * * then the flag value should be 2d."
     echo "  --repository-url <url>             GitHub repository URL,"
     echo "  --branch <branch>                  Repository branch name,"
     echo "  --no-old-commits-run               Skip the trigger Integration Tests if there are no recent commits compared with --scheduled flag."
@@ -171,7 +171,7 @@ trigger_integration_tests() {
 
     kubectl -n "${tenant}" label snapshot "${LATEST_SNAPSHOT}" test.appstudio.openshift.io/run="${scenario}"
 
-    echo "[INFO] Integration Service E2E tests successfully triggered!"
+    echo "[INFO] The test scenario successfully triggered!"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -223,21 +223,18 @@ if [[ -z "$KONFLUX_SCENARIO_NAME" || -z "$KONFLUX_TENANT_NAME" || -z "$KONFLUX_A
     show_help
 fi
 
-if [[ -n "$SCHEDULE" && ( -z "$REPO_URL" || -z "$BRANCH" ) ]]; then
-    echo -e "[ERROR] --repository-url and --branch are required when --schedule is specified.\n"
+if [[ -n "$SCHEDULE" && ( -z "$REPO_URL" || -z "$BRANCH" || -z "$NO_OLD_COMMITS_RUN" ) ]]; then
+    echo -e "[ERROR] --repository-url, --no-old-commits-run and --branch are required when --schedule flag is specified.\n"
     show_help
 fi
 
 # Run repository related logic only if --schedule flag is provided
-if [[ -n "$SCHEDULE" ]]; then
+if [[ -n "$SCHEDULE" && "$NO_OLD_COMMITS_RUN" == "true" ]]; then
     SINCE_TIME=$(calculate_past_time "$SCHEDULE")
     echo "[INFO] Checking for commits since: $SINCE_TIME"
 
     clone_repository "$REPO_URL" "$BRANCH"
-
-    if [[ "$NO_OLD_COMMITS_RUN" == "true" ]]; then
-        check_recent_commits "$SINCE_TIME"
-    fi
+    check_recent_commits "$SINCE_TIME"
 fi
 
 # Trigger the integration tests
