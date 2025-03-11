@@ -5,7 +5,7 @@
       "customType": "regex",
       "fileMatch": ["konflux/sealights-agents/nodejs/Dockerfile"],
       "matchStrings": [
-        "RUN npm i -g slnodejs@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "ENV AGENT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "npm",
       "depNameTemplate": "slnodejs",
@@ -15,7 +15,7 @@
       "customType": "regex",
       "fileMatch": ["konflux/sealights-agents/python/Dockerfile"],
       "matchStrings": [
-        "RUN pip install sealights-python-agent==(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "ENV AGENT_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "pypi",
       "depNameTemplate": "sealights-python-agent",
