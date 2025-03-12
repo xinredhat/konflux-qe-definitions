@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1alpha1
+kind: StepAction
+metadata:
+  name: gather-cluster-resources
+spec:
+  description: >-
+    This StepAction executes the gather extra script that gathers konflux related resources from the cluster.
+    It also allows for a URL with another gather job to be passed to gather custom resources.
+  image: quay.io/konflux-qe-incubator/konflux-qe-tools:latest
+  params:
+    - name: credentials
+      type: string
+      description: A volume containing credentials to the remote cluster
+    - name: kubeconfig
+      type: string
+      description: Relative path to the kubeconfig in the mounted cluster credentials volume
+    - name: ocp-login-command
+      type: string
+      description: Command to log in to the OpenShift cluster
+    - name: gather-url
+      type: list
+      description: URL for the custom resource gathering script. Should be a list of strings
+      default: ()
+    - name: artifact-dir
+      type: string
+      description: Relative path to where you want the artifacts to be stored
+      default: "/artifacts"
+  env:
+    - name: KUBECONFIG
+      value: "/credentials/$(params.kubeconfig)"
+    - name: GATHER_URL
+      value: "$(params.gather-url)"
+    - name: ARTIFACT_DIR
+      value: "$(params.artifact-dir)"
+  volumeMounts:
+    - name: "$(params.credentials)"
+      mountPath: /credentials
+  script: |
+    #!/bin/sh
+    if [ -z "${KUBECONFIG}" ]; then 
+      $(params.oc-login-command)
+    fi
+
+    curl -sSL https://raw.githubusercontent.com/konflux-ci/konflux-qe-definitions/main/scripts/gather-extra.sh | bash
+    for url in $GATHER_URL; 
+      do if ! [ -z "${url}" ]; then
+        curl -sSL "${url}" | bash
+      fi; 
+    done
+    
