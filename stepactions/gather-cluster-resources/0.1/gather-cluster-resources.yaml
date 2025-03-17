@@ -21,14 +21,15 @@ spec:
       default: ""
     - name: gather-urls
       type: array
-      description: URL for the custom resource gathering script. Should be a list of strings
+      description: A list of URLs for the custom resource gathering script
       default: []
     - name: artifact-dir
       type: string
       description: Relative path to where you want the artifacts to be stored
-      default: "/artifacts"
+      default: "/workspace"
   args: 
     - $(params.gather-urls[*])
+  workingDir: $(params.artifact-dir)
   env:
     - name: KUBECONFIG
       value: "/credentials/$(params.kubeconfig)"
@@ -41,8 +42,16 @@ spec:
       mountPath: /credentials
   script: |
     #!/bin/bash
-    if [ -z "${KUBECONFIG}" ]; then 
-      echo "${OC_LOGIN_COMMAND}" | bash
+    set -x 
+    export AUX=${KUBECONFIG#*"/credentials/"}
+    if [ -z "${AUX}" ]; then 
+      unset KUBECONFIG
+      if [[ "${OC_LOGIN_COMMAND}" = *"oc login"* ]]; then
+        echo "${OC_LOGIN_COMMAND}" | bash
+      else
+        echo "Login error. Please provide a valid kubeconfig or a valid oc login command."
+        exit 1
+      fi
     fi
 
     curl -sSL https://raw.githubusercontent.com/konflux-ci/tekton-integration-catalog/main/scripts/gather-extra.sh | bash
@@ -52,4 +61,3 @@ spec:
         curl -sSL "${url}" | bash
       fi; 
     done
-    
