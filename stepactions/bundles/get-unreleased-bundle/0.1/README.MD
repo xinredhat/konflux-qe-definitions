@@ -11,7 +11,7 @@ Default Channel Name Determination:
 * The default channel name corresponds to the 'defaultChannel' entry of the selected package
 
 The StepAction checks whether the highest bundle version is unreleased, specifically, not present in the Red Hat production Index Image (registry.redhat.io/redhat/redhat-operator-index).
-If the bundle is unreleased, the StepAction returns it.
+If the bundle is unreleased, the StepAction returns it, along with the package name and channel name.
 
 ## Parameters
 |name|description|default value|required|
@@ -24,6 +24,8 @@ If the bundle is unreleased, the StepAction returns it.
 |name|description|
 |---|---|
 |unreleasedBundle|The name of the bundle that is not in registry.redhat.io/redhat/redhat-operator-index.|
+|packageName|An OLM package name associated with the unreleased bundle.|
+|channelName|An OLM channel name associated with the unreleased bundle.|
 
 ## Example Usage
 

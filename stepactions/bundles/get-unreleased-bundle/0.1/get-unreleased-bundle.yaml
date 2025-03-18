@@ -12,7 +12,7 @@ spec:
     Default Channel Name Determination:
       * The default channel name corresponds to the 'defaultChannel' entry of the selected package
     The StepAction checks whether the highest bundle version is unreleased, specifically, not present in the Red Hat production Index Image (registry.redhat.io/redhat/redhat-operator-index).
-    If the bundle is unreleased, the StepAction returns it.
+    If the bundle is unreleased, the StepAction returns it, along with the package name and channel name.
   image: quay.io/konflux-ci/konflux-test:v1.4.20@sha256:f9db697d8a45870b862252de61b3c29d9d6f79272ef8bf61ecb645f8bca27705
   params:
     - name: fbcFragment
@@ -29,6 +29,10 @@ spec:
   results:
     - name: unreleasedBundle
       description: The name of the bundle that is not in registry.redhat.io/redhat/redhat-operator-index.
+    - name: packageName
+      description: An OLM package name associated with the unreleased bundle.
+    - name: channelName
+      description: An OLM channel name associated with the unreleased bundle.
   env:
     - name: FBC_FRAGMENT
       value: $(params.fbcFragment)
@@ -95,4 +99,6 @@ spec:
       exit 1
     fi
     echo "Highest bundle: $highest_version_from_bundles_list"
-    echo "$highest_version_from_bundles_list" > $(step.results.unreleasedBundle.path)
+    echo "$highest_version_from_bundles_list" > "$(step.results.unreleasedBundle.path)"
+    echo "$PACKAGE_NAME" > "$(step.results.packageName.path)"
+    echo "$CHANNEL_NAME" > "$(step.results.channelName.path)"
