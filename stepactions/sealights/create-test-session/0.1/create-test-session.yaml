@@ -1,11 +1,10 @@
 apiVersion: tekton.dev/v1alpha1
 kind: StepAction
 metadata:
-  name: upload-ginkgo-results
+  name: create-test-session
 spec:
   description: |
-    "This Tekton StepAction uploads Ginkgo test results to Sealights. It creates a Sealights test session
-     (if not provided), processes the Ginkgo JSON report, sends the test results to Sealights, and then deletes the test session."
+    The `create-test-session` initializes a new Sealights test session by creating a session ID using the Sealights API and storing it for later use in the pipeline.
   image: quay.io/konflux-ci/tekton-integration-catalog/utils:latest
   params:
     - name: sealights-domain
@@ -33,6 +32,10 @@ spec:
         secretKeyRef:
           name: sealights-credentials
           key: token
+  results:
+    - name: test-session-id
+      description: The intialized sealights session id based on BSID.
+
   script: |
     #!/bin/bash
     set -euo pipefail
