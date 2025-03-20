@@ -1,0 +1,259 @@
+apiVersion: tekton.dev/v1beta1
+kind: StepAction
+metadata:
+  name: install-operator
+spec:
+  description: |
+    This StepAction installs an operator from a provided FBC fragment.
+    1. Determine the Installation Namespace:
+      * Sets the install namespace to the operatorframework.io/suggested-namespace metadata annotation if it exists.
+      * Otherwise, creates a randomly named namespace.
+    2. Determine Target Namespaces for the Operator:
+      * Extracts the supported install modes from the bundle metadata.
+      * Assigns target namespaces based on the install mode in the following priority order:
+          AllNamespaces → Uses an empty namespace (cluster-wide install)
+          SingleNamespace → Uses "default"
+          OwnNamespace → Uses the installation namespace
+          MultiNamespace → Uses "openshift-marketplace,default"
+      * If the install mode is unsupported, the script exits with an error.
+    3. Create the OperatorGroup
+    4. Create the CatalogSource
+    5. Create the Subscription
+    6. Approve the InstallPlan
+    7. Wait for the ClusterServiceVersion to become Ready
+  image: quay.io/konflux-ci/konflux-test:v1.4.21@sha256:ddce6bc954694b55808507c1f92dfe9d094d52c636c8154c3fee441faff19f90
+  params:
+    - name: fbcFragment
+      type: string
+      description: A FBC fragment image.
+    - name: bundleImage
+      type: string
+      description: Operator bundle to install on a cluster.
+    - name: packageName
+      type: string
+      description: The name of the operator package to be installed.
+    - name: channelName
+      type: string
+      description: The name of the operator channel to track.
+  env:
+    - name: FBC_FRAGMENT
+      value: "$(params.fbcFragment)"
+    - name: BUNDLE_IMAGE
+      value: "$(params.bundleImage)"
+    - name: PACKAGE_NAME
+      value: "$(params.packageName)"
+    - name: CHANNEL_NAME
+      value: "$(params.channelName)"
+  script: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    . /utils.sh
+
+    for var in FBC_FRAGMENT BUNDLE_IMAGE PACKAGE_NAME CHANNEL_NAME; do
+      if [[ -z "${!var}" ]]; then
+          echo "Error: $var parameter is required." >&2
+          exit 1
+      fi
+    done
+
+    # Run opm render on a bundle image
+    if ! bundle_render_out=$(opm render "$BUNDLE_IMAGE"); then
+      echo "Failed to render the bundle image" >&2
+      exit 1
+    fi
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Retrieving 'operatorframework.io/suggested-namespace' metadata annotation if exists..."
+    INSTALL_NAMESPACE=$(get_bundle_suggested_namespace "$bundle_render_out")
+
+    if [[ -z "$INSTALL_NAMESPACE" ]]; then
+      echo "[$(date --utc +%FT%T.%3NZ)] No suggested namespace found, creating a new one"
+      NS_NAMESTANZA="generateName: oo-"
+    elif ! oc get namespace "$INSTALL_NAMESPACE"; then
+      echo "[$(date --utc +%FT%T.%3NZ)] Suggested namespace is '$INSTALL_NAMESPACE' which does not exist: creating"
+      NS_NAMESTANZA="name: $INSTALL_NAMESPACE"
+    else
+      echo "[$(date --utc +%FT%T.%3NZ)] INSTALL_NAMESPACE is '$INSTALL_NAMESPACE'"
+    fi
+
+    if [[ -n "${NS_NAMESTANZA:-}" ]]; then
+      INSTALL_NAMESPACE=$(
+        oc create -f - -o jsonpath='{.metadata.name}' <<EOF
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      $NS_NAMESTANZA
+    EOF
+      )
+    fi
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Retrieving bundle install modes..."
+    if ! TARGET_NAMESPACES=$(get_bundle_install_modes "$bundle_render_out"); then
+      echo "Could not get target namespaces for the bundle" >&2
+      exit 1
+    fi
+
+    TARGET_NAMESPACES_FINAL=""
+
+    # Prioritize install modes in the correct order
+    if echo "$TARGET_NAMESPACES" | grep -q "AllNamespaces"; then
+        echo "AllNamespaces is supported"
+        TARGET_NAMESPACES_FINAL=""
+    elif echo "$TARGET_NAMESPACES" | grep -q "SingleNamespace"; then
+        echo "SingleNamespace is supported"
+        TARGET_NAMESPACES_FINAL="default"
+    elif echo "$TARGET_NAMESPACES" | grep -q "OwnNamespace"; then
+        echo "OwnNamespace is supported"
+        TARGET_NAMESPACES_FINAL="$INSTALL_NAMESPACE"
+    elif echo "$TARGET_NAMESPACES" | grep -q "MultiNamespace"; then
+        echo "MultiNamespace is supported"
+        TARGET_NAMESPACES_FINAL="openshift-marketplace,default"
+    else
+        echo "Error: Unsupported TARGET_NAMESPACES value: $TARGET_NAMESPACES" >&2
+        exit 1
+    fi
+
+    TARGET_NAMESPACES="$TARGET_NAMESPACES_FINAL"
+
+    OPERATORGROUP=$(oc -n "$INSTALL_NAMESPACE" get operatorgroup -o jsonpath="{.items[*].metadata.name}" || true)
+
+    if [[ $(echo "$OPERATORGROUP" | wc -w) -gt 1 ]]; then
+        echo "[$(date --utc +%FT%T.%3NZ)] Error: multiple OperatorGroups in namespace \"$INSTALL_NAMESPACE\": $OPERATORGROUP" 1>&2
+        echo "[$(date --utc +%FT%T.%3NZ)] Script Completed Execution With Failures!"
+        exit 1
+    elif [[ -n "$OPERATORGROUP" ]]; then
+        echo "[$(date --utc +%FT%T.%3NZ)] OperatorGroup \"$OPERATORGROUP\" exists: modifying it"
+        OG_OPERATION=apply
+        OG_NAMESTANZA="name: $OPERATORGROUP"
+    else
+        echo "[$(date --utc +%FT%T.%3NZ)] OperatorGroup does not exist: creating it"
+        OG_OPERATION=create
+        OG_NAMESTANZA="generateName: oo-"
+    fi
+
+    OPERATORGROUP=$(
+        oc $OG_OPERATION -f - -o jsonpath='{.metadata.name}' <<EOF
+    apiVersion: operators.coreos.com/v1
+    kind: OperatorGroup
+    metadata:
+      $OG_NAMESTANZA
+      namespace: $INSTALL_NAMESPACE
+    spec:
+      targetNamespaces: [$TARGET_NAMESPACES]
+    EOF
+    )
+
+    echo "[$(date --utc +%FT%T.%3NZ)] OperatorGroup name is \"$OPERATORGROUP\""
+
+    CS_NAMESTANZA="generateName: oo-"
+
+    CS_MANIFEST=$(cat <<EOF
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    metadata:
+      $CS_NAMESTANZA
+      namespace: $INSTALL_NAMESPACE
+    spec:
+      sourceType: grpc
+      image: $FBC_FRAGMENT
+      grpcPodConfig:
+        securityContextConfig: restricted
+        extractContent:
+          catalogDir: /configs
+          cacheDir: /tmp/cache
+    EOF
+    )
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Creating CatalogSource:"
+    echo "$CS_MANIFEST"
+    CATSRC=$(oc create -f - -o jsonpath='{.metadata.name}' <<< "${CS_MANIFEST}" )
+    echo "[$(date --utc +%FT%T.%3NZ)] CatalogSource name is \"$CATSRC\""
+
+    # Waits up to 10 minutes until the Catalog source state is 'READY'
+    IS_CATSRC_CREATED=false
+    for i in $(seq 1 120); do
+      CATSRC_STATE=$(oc get catalogsources/"$CATSRC" -n "$INSTALL_NAMESPACE" -o jsonpath='{.status.connectionState.lastObservedState}')
+      echo $CATSRC_STATE
+      if [ "$CATSRC_STATE" = "READY" ]; then
+        echo "[$(date --utc +%FT%T.%3NZ)] Catalogsource created successfully after waiting $((5*i)) seconds"
+        echo "[$(date --utc +%FT%T.%3NZ)] Current state of catalogsource is \"$CATSRC_STATE\""
+        IS_CATSRC_CREATED=true
+        break
+      fi
+      sleep 5
+    done
+
+    if [ $IS_CATSRC_CREATED = false ]; then
+      echo "[$(date --utc +%FT%T.%3NZ)] Timed out waiting for the catalog source $CATSRC to become ready after 10 minutes."
+      echo "[$(date --utc +%FT%T.%3NZ)] Catalogsource state at timeout is \"$CATSRC_STATE\""
+      echo "[$(date --utc +%FT%T.%3NZ)] Script Completed Execution With Failures!"
+      exit 1
+    fi
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Set the deployment start time"
+
+    SUB_NAMESTANZA="generateName: oo-"
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Getting bundle name from image"
+    if ! bundleName=$(get_bundle_name "$bundle_render_out"); then
+      echo "Could not get a bundle name from a given image" >&2
+      exit 1
+    fi
+
+    SUB_MANIFEST=$(cat <<EOF
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      $SUB_NAMESTANZA
+      namespace: $INSTALL_NAMESPACE
+    spec:
+      name: $PACKAGE_NAME
+      channel: $CHANNEL_NAME
+      source: $CATSRC
+      sourceNamespace: $INSTALL_NAMESPACE
+      installPlanApproval: Manual
+      startingCSV: $bundleName
+    EOF
+    )
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Creating Subscription:"
+    echo "${SUB_MANIFEST}"
+
+    SUB=$(oc create -f - -o jsonpath='{.metadata.name}' <<< "${SUB_MANIFEST}" )
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Subscription name is \"$SUB\""
+
+    echo "[$(date --utc +%FT%T.%3NZ)] Waiting up to 5 minutes for installPlan to be created"
+    FOUND_INSTALLPLAN=false
+    for _ in $(seq 1 60); do
+      INSTALL_PLAN=$(oc -n "$INSTALL_NAMESPACE" get subscription "$SUB" -o jsonpath='{.status.installplan.name}' || true)
+
+      if [[ -n "$INSTALL_PLAN" ]]; then
+        oc -n "$INSTALL_NAMESPACE" patch installPlan "${INSTALL_PLAN}" --type merge --patch '{"spec":{"approved":true}}'
+        FOUND_INSTALLPLAN=true
+        break
+      fi
+      sleep 5
+    done
+
+    if [ "$FOUND_INSTALLPLAN" = true ]; then
+      echo "[$(date --utc +%FT%T.%3NZ)] Install Plan approved"
+      echo "[$(date --utc +%FT%T.%3NZ)] Waiting up to 10 minutes for ClusterServiceVersion to become ready..."
+      
+      for _ in $(seq 1 60); do
+        CSV=$(oc -n "$INSTALL_NAMESPACE" get subscription "$SUB" -o jsonpath="{.status.installedCSV}" || true)
+        if [[ -n "$CSV" ]]; then
+          if [[ "$(oc -n "$INSTALL_NAMESPACE" get csv "$CSV" -o jsonpath='{.status.phase}')" == "Succeeded" ]]; then
+            echo "[$(date --utc +%FT%T.%3NZ)] ClusterServiceVersion \"$CSV\" ready"
+            echo "[$(date --utc +%FT%T.%3NZ)] Script Completed Execution Successfully !"
+            exit 0
+          fi
+        fi
+        sleep 10
+      done
+
+      echo "[$(date --utc +%FT%T.%3NZ)] Timed out waiting for CSV to become ready"
+      exit 1
+    else
+      echo "[$(date --utc +%FT%T.%3NZ)] Failed to find installPlan for subscription"
+      exit 1
+    fi
