@@ -58,7 +58,7 @@ spec:
 
     if [ -z "${unreleased_bundles}" ]; then
       echo "No unreleased bundles found. Exiting."
-      exit 0
+      exit 1
     fi
     echo "Unreleased bundles found: $unreleased_bundles"
 
