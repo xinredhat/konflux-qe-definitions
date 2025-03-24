@@ -25,6 +25,13 @@ The **StepActions** directory houses modular building blocks that allow you to f
 - Reuse logic across multiple tasks.
 For further details on StepActions, refer to the [Tekton documentation](https://tekton.dev/docs/pipelines/stepactions/).
 
+### 🧩 Pipelines
+
+The **Pipelines** directory includes complete Tekton Pipelines composed of Tasks and StepActions. These Pipelines provide end-to-end examples of how to combine reusable components into robust CI/CD workflows. If you're looking to orchestrate multiple tasks into a cohesive flow, Pipelines are a great starting point.
+
+- **Adding a New Pipeline**:
+   To add a new pipeline, create a `.yaml` file inside the `pipelines/<your-pipeline-name>/0.1/` directory. Ensure it follows the Tekton [Pipeline specification](https://tekton.dev/docs/pipelines/pipelines/), is well-documented (add `README.md` file), and [well-versioned](#-versioning).
+
 ### 🧰 Konflux Integration Tools
 
 The **Konflux Integration Tools** provide utilities specifically designed to facilitate the development and management of Tekton tasks.
