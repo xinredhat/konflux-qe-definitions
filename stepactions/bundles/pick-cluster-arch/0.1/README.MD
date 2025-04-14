@@ -1,7 +1,7 @@
 # pick-cluster-arch stepaction
 
 This StepAction retrieves the supported architectures for a bundle by checking the "operatorframework.io/arch" labels on the bundle CSV.
-If arm64 is supported, the StepAction returns it; otherwise, it returns amd64.
+If arm64 is supported, the StepAction returns "m6g.large" instance type; otherwise, it returns "m5.large".
 If neither arm64 nor amd64 are supported, the step exits with an error.
 
 ## Parameters
@@ -12,7 +12,7 @@ If neither arm64 nor amd64 are supported, the step exits with an error.
 ## Results
 |name|description|
 |---|---|
-|bundleArch|A bundle-supported architecture, arm64 or amd64.|
+|bundleArch|A bundle-supported architecture, m6g.large or m5.large.|
 
 ## Example Usage
 

@@ -5,7 +5,7 @@ metadata:
 spec:
   description: |
     This StepAction retrieves the supported architectures for a bundle by checking the "operatorframework.io/arch" labels on the bundle CSV.
-    If arm64 is supported, the StepAction returns it; otherwise, it returns amd64.
+    If arm64 is supported, the StepAction returns "m6g.large" instance type; otherwise, it returns "m5.large".
     If neither arm64 nor amd64 are supported, the step exits with an error.
   image: quay.io/konflux-ci/konflux-test:v1.4.19@sha256:6cecc96de443a5c6b3906091656cef504833797dfd2aa132d1eeabc5483b2fb9
   params:
@@ -14,7 +14,7 @@ spec:
       description: A bundle image.
   results:
     - name: bundleArch
-      description: A bundle-supported architecture, arm64 or amd64.
+      description: A bundle-supported architecture, m6g.large or m5.large.
   env:
     - name: BUNDLE_IMAGE
       value: "$(params.bundleImage)"
@@ -43,10 +43,10 @@ spec:
     # If arm64 is supported, return it; otherwise, return amd64
     if echo "$arches" | grep -q "^arm64$"; then
       echo "arm64 architecture is supported"
-      echo "arm64" > $(step.results.bundleArch.path)
+      printf "m6g.large" > $(step.results.bundleArch.path)
     elif echo "$arches" | grep -q "^amd64$"; then
       echo "amd64 architecture is supported"
-      echo "amd64" > $(step.results.bundleArch.path)
+      printf "m5.large" > $(step.results.bundleArch.path)
     else
       echo "Neither arm64 nor amd64 is supported."
       exit 1

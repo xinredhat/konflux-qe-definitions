@@ -265,6 +265,8 @@ spec:
                 value: $(tasks.provision-eaas-space.results.secretRef)
               - name: version
                 value: "$(steps.get-latest-version-tag.results.version)"
+              - name: instanceType
+                value: "$(steps.pick-cluster-arch.results.bundleArch)"
     - name: deploy-operator
       runAfter:
         - provision-cluster
