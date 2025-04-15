@@ -181,7 +181,7 @@ spec:
               fi
 
               echo -n "$replaced_image" > "$(results.unreleasedBundle.path)"
-    - name: provision-cluster
+    - name: pick-cluster-params
       runAfter:
         - get-unreleased-bundle
       when:
@@ -193,8 +193,10 @@ spec:
           values: [ "push", "Push" ]
       taskSpec:
         results:
-          - name: clusterName
-            value: "$(steps.create-cluster.results.clusterName)"
+          - name: ocpVersion
+            value: "$(steps.pick-cluster-version.results.ocpVersion)"
+          - name: bundleArch
+            value: "$(steps.pick-cluster-arch.results.bundleArch)"
         steps:
           - name: get-supported-versions
             ref:
@@ -237,6 +239,27 @@ spec:
             params:            
               - name: bundleImage
                 value: "$(tasks.get-unreleased-bundle.results.unreleasedBundle)"
+    - name: provision-cluster
+      runAfter:
+        - pick-cluster-params
+      when:
+        - input: "$(tasks.get-unreleased-bundle.results.unreleasedBundle)"
+          operator: notin
+          values: [""]
+        - input: "$(tasks.pick-cluster-params.results.ocpVersion)"
+          operator: notin
+          values: [""]
+        - input: "$(tasks.pick-cluster-params.results.bundleArch)"
+          operator: notin
+          values: [""]
+        - input: $(tasks.parse-metadata.results.test-event-type)
+          operator: in
+          values: [ "push", "Push" ]
+      taskSpec:
+        results:
+          - name: clusterName
+            value: "$(steps.create-cluster.results.clusterName)"
+        steps:
           - name: get-latest-version-tag
             ref:
               resolver: git
@@ -249,7 +272,7 @@ spec:
                   value: stepactions/eaas-get-latest-openshift-version-by-prefix/0.1/eaas-get-latest-openshift-version-by-prefix.yaml
             params:
               - name: prefix
-                value: "$(steps.pick-cluster-version.results.ocpVersion)"
+                value: "$(tasks.pick-cluster-params.results.ocpVersion)"
           - name: create-cluster
             ref:
               resolver: git
@@ -266,7 +289,7 @@ spec:
               - name: version
                 value: "$(steps.get-latest-version-tag.results.version)"
               - name: instanceType
-                value: "$(steps.pick-cluster-arch.results.bundleArch)"
+                value: "$(tasks.pick-cluster-params.results.bundleArch)"
     - name: deploy-operator
       runAfter:
         - provision-cluster

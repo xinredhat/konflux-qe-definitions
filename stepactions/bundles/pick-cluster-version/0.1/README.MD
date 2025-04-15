@@ -6,8 +6,8 @@ The version is returned if it is included in the list of supported Hypershift cl
 ## Parameters
 |name|description|default value|required|
 |---|---|---|---|
-|FBC_FRAGMENT|A FBC fragment image.||true|
-|CLUSTER_VERSIONS|List of supported minor versions from newest to oldest. E.g. ["4.15","4.14","4.13"]||true|
+|fbcFragment|A FBC fragment image.||true|
+|clusterVersions|List of supported minor versions from newest to oldest. E.g. ["4.15","4.14","4.13"]||true|
 
 ## Results
 |name|description|

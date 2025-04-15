@@ -48,6 +48,7 @@ spec:
       echo "amd64 architecture is supported"
       printf "m5.large" > $(step.results.bundleArch.path)
     else
-      echo "Neither arm64 nor amd64 is supported."
-      exit 1
+      echo "Neither arm64 nor amd64 is supported. Exiting as a no-op."
+      echo -n "" > "$(step.results.bundleArch.path)"
+      exit 0
     fi
