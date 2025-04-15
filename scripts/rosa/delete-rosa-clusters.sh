@@ -53,8 +53,33 @@ delete_subnet_tags() {
     local cluster_id=$1
     local subnet_ids="${AWS_SUBNET_IDS//,/ }"
 
-    echo "[INFO] Removing tag from subnets [$AWS_SUBNET_IDS]..."
+    echo "[INFO] Removing tag '$cluster_id' from subnets [$AWS_SUBNET_IDS]..."
     aws --region "$AWS_DEFAULT_REGION" ec2 delete-tags --resources $subnet_ids --tags Key="kubernetes.io/cluster/${cluster_id}"
+}
+
+# Search for subnets' tags that contain a cluster ID which doesn't exist anymore and delete them
+delete_old_subnet_tags() {
+    local cluster_list cluster_ids_list
+    cluster_list=("$@")
+    readarray -t cluster_ids_list < <(aws --region "$AWS_DEFAULT_REGION" ec2 describe-tags --filters "Name=resource-id, Values=${AWS_SUBNET_IDS}" | jq -r '.Tags[].Key' | cut -d '/' -f3)
+
+    for cluster_id in "${cluster_ids_list[@]}"; do
+        if [[ ! ${cluster_list[*]} =~ $cluster_id ]]; then
+            delete_subnet_tags "$cluster_id"
+        fi
+    done
+}
+
+# Search for unused EBS volumes older than 24 hours and delete them
+delete_old_ebs_volumes() {
+    local volume_ids_array
+    # List EBS volumes older than 24 hours
+    readarray -t volume_ids_array < <(aws --region "$AWS_DEFAULT_REGION" ec2 describe-volumes --query "Volumes[?CreateTime<=\`$(date -d "1 day ago" +%Y-%m-%dT%H:%M)\`]" | jq -r '.[] | select(.State=="available") | .VolumeId')
+
+    for volume_id in "${volume_ids_array[@]}"; do
+        echo "[INFO] Deleting old EBS volume with volume id: $volume_id"
+        aws --region "$AWS_DEFAULT_REGION" ec2 delete-volume --volume-id "${volume_id}"
+    done
 }
 
 delete_load_balancers() {
@@ -67,8 +92,10 @@ delete_load_balancers() {
     for lb_arn in $load_balancers; do
         local tags
         tags=$(aws --region "$AWS_DEFAULT_REGION" elbv2 describe-tags --resource-arns "$lb_arn" --query "TagDescriptions[*].Tags[?Key=='$LB_TAG_KEY'&&Value=='$lb_tag_value'].Value" --output text)
+        # Check for any forgotten load balancers (with tag "konflux-ci=true" and older than 1 day)
+        has_konflux_ci_tag_and_is_old=$(aws --region "$AWS_DEFAULT_REGION" elbv2 describe-tags --resource-arns "$lb_arn" --query "TagDescriptions[*].[Tags[?Key=='konflux-ci'&&Value=='true'] && Tags[?Key=='creation-date'&&Value<='$(gdate -d "1 day ago" +%Y-%m-%d)']]" --output text)
         
-        if [[ "$tags" == "$lb_tag_value" ]]; then
+        if [[ "$tags" == "$lb_tag_value" || "$has_konflux_ci_tag_and_is_old" != "" ]]; then
             echo "[INFO] Deleting ELBv2 Load Balancer with ARN: $lb_arn"
             aws --region "$AWS_DEFAULT_REGION" elbv2 delete-load-balancer --load-balancer-arn "$lb_arn"
         fi
@@ -97,7 +124,7 @@ delete_target_groups() {
 
         if [[ "$IS_KONFLUX_CI_TAG" == "true" ]]; then
             # Check if the target group was created today
-            if [[ ! " ${TODAYS_TARGET_GROUP_ARRAY[@]} " =~ " ${TG_ARN} " ]]; then
+            if [[ ! " ${TODAYS_TARGET_GROUP_ARRAY[*]} " =~ " ${TG_ARN} " ]]; then
                 echo "Deleting target group: $TG_ARN (tagged 'konflux-ci=true' and not created today)"
                 aws elbv2 delete-target-group --target-group-arn "$TG_ARN" --region "$AWS_DEFAULT_REGION"
             else
@@ -110,9 +137,10 @@ delete_target_groups() {
 }
 
 delete_old_clusters() {
-    local cluster_list=$1
+    local cluster_list
+    cluster_list=("$@")
 
-    echo "$cluster_list" | jq -c '.[] | select(.aws.tags."konflux-ci" != null)' | while IFS= read -r cluster; do
+    for cluster in "${cluster_list[@]}"; do
         local cluster_id
         local creation_date
         local creation_seconds
@@ -144,10 +172,15 @@ main() {
 
     delete_target_groups
 
+    delete_old_ebs_volumes
+
     local cluster_list
-    cluster_list=$(rosa list clusters --all -o json)
-    if [[ -n "$cluster_list" ]]; then
-        delete_old_clusters "$cluster_list"
+    readarray -t cluster_list < <(rosa list clusters --all -o json | jq -c '.[] | select(.aws.tags."konflux-ci" != null)')    
+    
+    delete_old_subnet_tags "${cluster_list[@]}"
+
+    if [[ ${#cluster_list[@]} -ne 0 ]]; then
+        delete_old_clusters "${cluster_list[@]}"
     else
         echo "[INFO] No clusters for cleanup found."
     fi
