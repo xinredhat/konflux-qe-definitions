@@ -36,8 +36,8 @@ The pipeline consists of the following tasks:
 ## Parameters
 |name|description|default value|required|
 |---|---|---|---|
-|snapshot| Snapshot of the application|| true|
-|package-name| An OLM package name present in the fragment or leave it empty so the step will determine the default package. If there is only one 'olm.package', it's name is returned. If multiple 'olm.package' entries contain unreleased bundles, user input is required; the PACKAGE_NAME parameter must be set by the user| ""| false|
-|channel-name| An OLM channel name or leave it empty so the step will determine the default channel name. The default channel name corresponds to the 'defaultChannel' entry of the selected package| ""| false|
-|credentials-secret-name| Name of the secret containing the oci-storage-dockerconfigjson key with registry credentials in .dockerconfigjson format, used for pushing artifacts to an OCI registry|| true|
-|oci-ref| Full OCI artifact reference in a format "quay.io/org/repo:tag"|| true|
+|SNAPSHOT| Snapshot of the application|| true|
+|PACKAGE_NAME| An OLM package name present in the fragment or leave it empty so the step will determine the default package. If there is only one 'olm.package', it's name is returned. If multiple 'olm.package' entries contain unreleased bundles, user input is required; the PACKAGE_NAME parameter must be set by the user| ""| false|
+|CHANNEL_NAME| An OLM channel name or leave it empty so the step will determine the default channel name. The default channel name corresponds to the 'defaultChannel' entry of the selected package| ""| false|
+|CREDENTIALS_SECRET_NAME| Name of the secret containing the oci-storage-dockerconfigjson key with registry credentials in .dockerconfigjson format, used for pushing artifacts to an OCI registry|| true|
+|OCI_REF| Full OCI artifact reference in a format "quay.io/org/repo:tag"|| true|

@@ -24,19 +24,19 @@ spec:
               }
             ]
           }
-      name: snapshot
+      name: SNAPSHOT
       type: string
     - description: |
         An OLM package name present in the fragment or leave it empty so the step will determine the default package name. 
         * If there is only one 'olm.package', it's name is returned.
         * If multiple 'olm.package' entries contain unreleased bundles, user input is required; the PACKAGE_NAME parameter must be set by the user.
-      name: package-name
+      name: PACKAGE_NAME
       default: ""
       type: string
     - description: |
         An OLM channel name or leave it empty so the step will determine the default channel name. 
         * The default channel name corresponds to the 'defaultChannel' entry of the selected package.
-      name: channel-name
+      name: CHANNEL_NAME
       default: ""
       type: string
     - description: |
@@ -50,10 +50,10 @@ spec:
           type: Opaque
           data:
             oci-storage-dockerconfigjson: <BASE64_ENCODED_DOCKERCONFIGJSON>
-      name: credentials-secret-name
+      name: CREDENTIALS_SECRET_NAME
       type: string
     - description: Full OCI artifact reference in a format "quay.io/org/repo:tag"
-      name: oci-ref
+      name: OCI_REF
       type: string
   tasks:
     - name: parse-metadata
@@ -68,7 +68,7 @@ spec:
             value: tasks/test_metadata.yaml
       params:
         - name: SNAPSHOT
-          value: $(params.snapshot)
+          value: $(params.SNAPSHOT)
     - name: provision-eaas-space
       runAfter:
         - parse-metadata
@@ -126,9 +126,9 @@ spec:
               - name: fbcFragment
                 value: "$(tasks.parse-metadata.results.component-container-image)"
               - name: packageName
-                value: $(params.package-name)
+                value: $(params.PACKAGE_NAME)
               - name: channelName
-                value: $(params.channel-name)
+                value: $(params.CHANNEL_NAME)
           - name: process-image-mirror-set
             image: quay.io/konflux-ci/konflux-test:v1.4.21@sha256:ddce6bc954694b55808507c1f92dfe9d094d52c636c8154c3fee441faff19f90
             computeResources:
@@ -309,7 +309,7 @@ spec:
             emptyDir: {}
           - name: oci-auth
             secret:
-              secretName: $(params.credentials-secret-name)
+              secretName: $(params.CREDENTIALS_SECRET_NAME)
         steps:
           - name: get-kubeconfig
             ref:
@@ -607,7 +607,7 @@ spec:
               - name: workdir-path
                 value: /workspace
               - name: oci-ref
-                value: $(params.oci-ref):$(tasks.parse-metadata.results.source-git-revision)
+                value: $(params.OCI_REF):$(tasks.parse-metadata.results.source-git-revision)
               - name: credentials-volume-name
                 value: oci-auth
           - name: fail-if-any-step-failed
