@@ -22,10 +22,10 @@ This StepAction installs an operator from a provided FBC fragment.
 ## Parameters
 |name|description|default value|required|
 |---|---|---|---|
-|FBC_FRAGMENT|A FBC fragment image.||true|
-|BUNDLE_IMAGE|Operator bundle to install on a cluster.||true|
-|PACKAGE_NAME|The name of the operator package to be installed.||true|
-|CHANNEL_NAME|The name of the operator channel to track.||true|
+|fbcFragment|A FBC fragment image.||true|
+|bundleImage|Operator bundle to install on a cluster.||true|
+|packageName|The name of the operator package to be installed.||true|
+|channelName|The name of the operator channel to track.||true|
 
 ## Example Usage
 
