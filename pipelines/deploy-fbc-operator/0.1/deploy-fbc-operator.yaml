@@ -157,9 +157,19 @@ spec:
                 exit 0
               fi
 
+              # Check if the bundle image is pullable before anything else
+              if skopeo inspect --no-tags --config "docker://${BUNDLE_IMAGE}" > /dev/null 2>&1; then
+                echo "Bundle image $BUNDLE_IMAGE is pullable. Using as-is, without applying mirror substitution."
+                echo -n "$BUNDLE_IMAGE" > "$(results.unreleasedBundle.path)"
+                exit 0
+              fi
+              echo "Could not inspect original pullspec $BUNDLE_IMAGE. Checking if there's a mirror present"
+              
+              # Fetch and process mirror set
               mirror_set_url="${SOURCE_GIT_URL}/raw/${SOURCE_GIT_REVISION}/.tekton/images-mirror-set.yaml"
               
-              if mirror_set_yaml=$(curl -sfL "${mirror_set_url}"); then
+              # Fetch mirror map from the URL
+              if mirror_set_yaml=$(curl -kfL "${mirror_set_url}"); then
                 process_image_digest_mirror_set "${mirror_set_yaml}" > /tekton/home/mirror-map.txt
               else
                 echo "Could not fetch image mirror set at ${mirror_set_url}. Unreleased bundles will fail opm render."
@@ -171,13 +181,34 @@ spec:
                 echo "Image Mirror Map found:"
                 cat /tekton/home/mirror-map.txt
 
-                reg_and_repo=$(echo "${BUNDLE_IMAGE}" | sed -E 's/^([^:@]+).*$/\1/')
-                first_mirror=$(jq -r --arg image "$reg_and_repo" '.[$image][0]' /tekton/home/mirror-map.txt)
+                # Get registry and repo from BUNDLE_IMAGE
+                reg_and_repo=$(get_image_registry_and_repository "${BUNDLE_IMAGE}")
+                mapfile -t mirrors < <(jq -r --arg image "${reg_and_repo}" '.[$image][]' /tekton/home/mirror-map.txt)
+                echo "Mirrors for $reg_and_repo are:"
+                printf "%s\n" "${mirrors[@]}"
 
-                if [ "$first_mirror" != "null" ]; then
-                  replaced_image=$(replace_image_pullspec "$BUNDLE_IMAGE" "$first_mirror")
+                # Iterate over mirrors and try each one
+                for mirror in "${mirrors[@]}"; do
+                  echo "Attempting to use mirror ${mirror}"
+                  replaced_image=$(replace_image_pullspec "$BUNDLE_IMAGE" "$mirror")
+
+                  # Check if the mirror is accessible
+                  if ! bundle_out=$(skopeo inspect --no-tags --config "docker://${replaced_image}"); then
+                    echo "Mirror $replaced_image is inaccessible."
+                    continue
+                  fi
+
                   echo "Replacing $BUNDLE_IMAGE with $replaced_image"
+                  break
+                done
+
+                if [ -z "$replaced_image" ]; then
+                  echo "No valid mirrors found for $BUNDLE_IMAGE"
+                  exit 1
                 fi
+              else
+                echo "Mirror map file is empty or not found."
+                exit 1
               fi
 
               echo -n "$replaced_image" > "$(results.unreleasedBundle.path)"
@@ -355,7 +386,7 @@ spec:
             # In case the test fails, we don't want to fail the TaskRun immediately,
             # because we want to proceed with archiving the artifacts in a following step.
             onError: continue
-            image: quay.io/konflux-ci/konflux-test:v1.4.21@sha256:ddce6bc954694b55808507c1f92dfe9d094d52c636c8154c3fee441faff19f90
+            image: quay.io/konflux-ci/konflux-test:v1.4.24@sha256:47473fad67b5a5f4c3a701846ebcb0f732344b72aa12ad693d2313319b18930a
             computeResources:
               limits:
                 memory: 4Gi
@@ -400,7 +431,7 @@ spec:
               echo "[$(date --utc +%FT%T.%3NZ)] Retrieving 'operatorframework.io/suggested-namespace' metadata annotation if exists..."
               INSTALL_NAMESPACE=$(get_bundle_suggested_namespace "$bundle_render_out")
 
-              if [[ -z "$INSTALL_NAMESPACE" ]]; then
+              if [[ -z "$INSTALL_NAMESPACE" || "$INSTALL_NAMESPACE" == null ]]; then
                 echo "[$(date --utc +%FT%T.%3NZ)] No suggested namespace found, creating a new one"
                 NS_NAMESTANZA="generateName: oo-"
               elif ! oc get namespace "$INSTALL_NAMESPACE"; then
