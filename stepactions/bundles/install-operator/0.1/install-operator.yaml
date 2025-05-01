@@ -21,7 +21,7 @@ spec:
     5. Create the Subscription
     6. Approve the InstallPlan
     7. Wait for the ClusterServiceVersion to become Ready
-  image: quay.io/konflux-ci/konflux-test:v1.4.21@sha256:ddce6bc954694b55808507c1f92dfe9d094d52c636c8154c3fee441faff19f90
+  image: quay.io/konflux-ci/konflux-test:v1.4.24@sha256:47473fad67b5a5f4c3a701846ebcb0f732344b72aa12ad693d2313319b18930a
   params:
     - name: fbcFragment
       type: string
@@ -65,7 +65,7 @@ spec:
     echo "[$(date --utc +%FT%T.%3NZ)] Retrieving 'operatorframework.io/suggested-namespace' metadata annotation if exists..."
     INSTALL_NAMESPACE=$(get_bundle_suggested_namespace "$bundle_render_out")
 
-    if [[ -z "$INSTALL_NAMESPACE" ]]; then
+    if [[ -z "$INSTALL_NAMESPACE" || "$INSTALL_NAMESPACE" == null ]]; then
       echo "[$(date --utc +%FT%T.%3NZ)] No suggested namespace found, creating a new one"
       NS_NAMESTANZA="generateName: oo-"
     elif ! oc get namespace "$INSTALL_NAMESPACE"; then
