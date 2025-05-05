@@ -11,7 +11,7 @@ The pipeline consists of the following tasks:
      * Git revision
 
 2. **Provision EAAS Space (`provision-eaas-space`)**  
-   Allocates an **Ephemeral-as-a-Service (EaaS) space** for cluster provisioning.
+   Allocates an **Environment-as-a-Service (EaaS) space** for cluster provisioning.
 
 3. **Get Unreleased Bundle (`get-unreleased-bundle`)**
    - Retrieves the **unreleased bundle** from the FBC fragment.
@@ -41,3 +41,5 @@ The pipeline consists of the following tasks:
 |CHANNEL_NAME| An OLM channel name or leave it empty so the step will determine the default channel name. The default channel name corresponds to the 'defaultChannel' entry of the selected package| ""| false|
 |CREDENTIALS_SECRET_NAME| Name of the secret containing the oci-storage-dockerconfigjson key with registry credentials in .dockerconfigjson format, used for pushing artifacts to an OCI registry|| true|
 |OCI_REF| Full OCI artifact reference in a format "quay.io/org/repo:tag"|| true|
+|REPO_TOKEN| Name of the Kubernetes Secret that contains the access token for a private GitHub or GitLab repository|| false|
+|REPO_KEY| Key within the Secret's "data" field that holds the GitHub/GitLab access token|| false|
