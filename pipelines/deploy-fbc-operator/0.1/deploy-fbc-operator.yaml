@@ -55,6 +55,14 @@ spec:
     - description: Full OCI artifact reference in a format "quay.io/org/repo:tag"
       name: OCI_REF
       type: string
+    - description: Name of the Kubernetes Secret that contains the access token for a private GitHub or GitLab repository
+      name: REPO_TOKEN
+      default: ""
+      type: string
+    - description: Key within the Secret's "data" field that holds the GitHub/GitLab access token
+      name: REPO_KEY
+      default: ""
+      type: string
   tasks:
     - name: parse-metadata
       taskRef:
@@ -144,6 +152,10 @@ spec:
                 value: "$(tasks.parse-metadata.results.source-git-url)"
               - name: SOURCE_GIT_REVISION
                 value: "$(tasks.parse-metadata.results.source-git-revision)"
+              - name: REPO_TOKEN
+                value: $(params.REPO_TOKEN)
+              - name: REPO_KEY
+                value: $(params.REPO_KEY)
             script: |
               #!/usr/bin/env bash
               set -euo pipefail
@@ -168,9 +180,35 @@ spec:
               # Fetch and process mirror set
               mirror_set_url="${SOURCE_GIT_URL}/raw/${SOURCE_GIT_REVISION}/.tekton/images-mirror-set.yaml"
               
-              # Fetch mirror map from the URL
-              if mirror_set_yaml=$(curl -kfL "${mirror_set_url}"); then
-                process_image_digest_mirror_set "${mirror_set_yaml}" > /tekton/home/mirror-map.txt
+              # If REPO_TOKEN and REPO_KEY are defined, assume the source code repo is private and requires a token
+              if [[ -n "${REPO_TOKEN}" && -n "${REPO_KEY}" ]]; then
+                echo "Source code repository is private and requires a token to access it"
+
+                # Decode the token from the Kubernetes secret
+                TOKEN=$(kubectl get secret "$REPO_TOKEN" -o jsonpath="{.data.$REPO_KEY}" | base64 -d)
+                if [[ -z "$TOKEN" ]]; then
+                  echo "Failed to retrieve or decode token from secret '$REPO_TOKEN' key '$REPO_KEY'"
+                  exit 1
+                fi
+                
+                # Determine token header type
+                if [[ "$SOURCE_GIT_URL" == *"github.com"* ]]; then
+                  AUTH_HEADER="Authorization: token $TOKEN"
+                elif [[ "$SOURCE_GIT_URL" == *"gitlab."* ]]; then
+                  AUTH_HEADER="PRIVATE-TOKEN: $TOKEN"
+                else
+                  echo "Unknown Git provider. Cannot determine proper authorization header."
+                  exit 1
+                fi
+
+                # Fetch the file
+                mirror_set_yaml=$(curl -kfL -H "$AUTH_HEADER" "$mirror_set_url")
+              else
+                mirror_set_yaml=$(curl -kfL "$mirror_set_url")
+              fi
+
+              if [[ $? -eq 0 && -n "$mirror_set_yaml" ]]; then
+                process_image_digest_mirror_set "$mirror_set_yaml" > /tekton/home/mirror-map.txt
               else
                 echo "Could not fetch image mirror set at ${mirror_set_url}. Unreleased bundles will fail opm render."
                 exit 1
@@ -183,27 +221,39 @@ spec:
 
                 # Get registry and repo from BUNDLE_IMAGE
                 reg_and_repo=$(get_image_registry_and_repository "${BUNDLE_IMAGE}")
-                mapfile -t mirrors < <(jq -r --arg image "${reg_and_repo}" '.[$image][]' /tekton/home/mirror-map.txt)
-                echo "Mirrors for $reg_and_repo are:"
-                printf "%s\n" "${mirrors[@]}"
 
-                # Iterate over mirrors and try each one
-                for mirror in "${mirrors[@]}"; do
-                  echo "Attempting to use mirror ${mirror}"
-                  replaced_image=$(replace_image_pullspec "$BUNDLE_IMAGE" "$mirror")
+                # Check if there are any mirrors for the image
+                has_mirrors=$(jq -r --arg image "${reg_and_repo}" 'has($image)' /tekton/home/mirror-map.txt)
 
-                  # Check if the mirror is accessible
-                  if ! bundle_out=$(skopeo inspect --no-tags --config "docker://${replaced_image}"); then
-                    echo "Mirror $replaced_image is inaccessible."
-                    continue
+                if [[ "$has_mirrors" == "true" ]]; then
+                  mapfile -t mirrors < <(jq -r --arg image "${reg_and_repo}" '.[$image][]' /tekton/home/mirror-map.txt)
+                  
+                  echo "Mirrors for $reg_and_repo are:"
+                  printf "%s\n" "${mirrors[@]}"
+
+                  mirror_found=false
+                  # Iterate over mirrors and try each one
+                  for mirror in "${mirrors[@]}"; do
+                    echo "Attempting to use mirror ${mirror}"
+                    replaced_image=$(replace_image_pullspec "$BUNDLE_IMAGE" "$mirror")
+
+                    # Check if the mirror is accessible
+                    if ! bundle_out=$(skopeo inspect --no-tags --config "docker://${replaced_image}"); then
+                      echo "Mirror $replaced_image is inaccessible."
+                      continue
+                    fi
+
+                    echo "Replacing $BUNDLE_IMAGE with $replaced_image"
+                    mirror_found=true
+                    break
+                  done
+
+                  if [ "$mirror_found" = false ]; then
+                    echo "No valid mirrors found for $BUNDLE_IMAGE"
+                    exit 1
                   fi
-
-                  echo "Replacing $BUNDLE_IMAGE with $replaced_image"
-                  break
-                done
-
-                if [ -z "$replaced_image" ]; then
-                  echo "No valid mirrors found for $BUNDLE_IMAGE"
+                else
+                  echo "No mirrors found for $reg_and_repo in mirror map."
                   exit 1
                 fi
               else
