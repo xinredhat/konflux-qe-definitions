@@ -61,25 +61,25 @@ spec:
         #!/bin/bash
         set -e
 
-        # Exit early if the pipeline was cancelled
-        # TODO: In the future we can plan to monitor how many e2e tests got cancelled
-        if [ "$IS_CANCELLED" == "true" ]; then
-          echo "[INFO] Cancelled pipeline detected. No report will be sent to quality dashboard."
-          exit 0
+        PIPELINE_STATUS=$(kubectl get pipelinerun $(params.test-name) -o jsonpath='{.status.conditions[0].reason}')
+
+        # Determine the pipeline status based on the pipeline-aggregate-status param and $PIPELINE_STATUS
+        if [ "$(params.pipeline-aggregate-status)" == "Succeeded" ] || [ "$(params.pipeline-aggregate-status)" == "Completed" ]; then
+          echo "[INFO] PipelineRun succeeded."
+          STATUS="success"
+        elif [ "${PIPELINE_STATUS}" = "CancelledRunningFinally" ]; then
+          echo "[INFO] PipelineRun was cancelled."
+          STATUS="aborted"
+        else
+          echo "[INFO] PipelineRun failed."
+          STATUS="failure"
         fi
+
+        echo "[INFO] Setting STATUS to '$STATUS'"
 
         # Set the event type to "pull_request" if it's not a push and has a PR number
         if [ "$EVENT_TYPE" != "push" ] && [ -n "$PULL_REQUEST_NUMBER" ]; then
           EVENT_TYPE="pull_request"
-        fi
-
-        # Determine the pipeline status based on the pipeline-aggregate-status param
-        if [ "$(params.pipeline-aggregate-status)" == "Succeeded" ] || [ "$(params.pipeline-aggregate-status)" == "Completed" ]; then
-          STATUS="success"
-        elif [ "$(params.pipeline-aggregate-status)" == "Failed" ]; then
-          STATUS="failure"
-        elif [ "$(params.pipeline-aggregate-status)" == "None" ]; then
-          STATUS="aborted"
         fi
 
         # Create a metadata JSON file with test details
