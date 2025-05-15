@@ -27,7 +27,7 @@ spec:
     - name: testing-task2
       # ... (your testing Task) ...
   finally:
-    - name: store-status
+    - name: store-pipeline-status
       taskRef:
         resolver: git
         params:
@@ -42,10 +42,10 @@ spec:
           value: quay.io/org/repo:artifact-tag
         - name: credentials-secret-name
           value: secret-name
-        - name: pipelinerun-name
-          value: $(context.pipelineRun.name)
         - name: pipeline-aggregate-status
           value: $(tasks.status)
+        - name: pipelinerun-name
+          value: $(context.pipelineRun.name)
 ```
 
 ## Results
