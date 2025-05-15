@@ -80,7 +80,7 @@ RUN curl -L "https://github.com/leaktk/scanner/releases/download/v${LEAKTK_VERSI
 RUN curl -LO https://raw.githubusercontent.com/leaktk/hack/b41569b3bbed867eabd15649f6650ae506c8cfc5/leaktk-remove-files && chmod +x leaktk-remove-files && mv leaktk-remove-files /usr/local/bin/
 
 # Runnable
-FROM registry.redhat.io/ubi9/ubi@sha256:d342aa80781bf41c4c73485c41d8f1e2dbc40ee491633d9cafe787c361dd44ff
+FROM registry.redhat.io/ubi9/ubi@sha256:304b50df1ea4db9706d8a30f4bbf26f582936ebc80c7e075c72ff2af99292a54
 
 LABEL konflux.additional-tags="latest"
 
