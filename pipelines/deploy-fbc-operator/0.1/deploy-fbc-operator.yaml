@@ -117,10 +117,10 @@ spec:
           - name: get-unreleased-bundle
             computeResources:
               limits:
-                memory: 4Gi
+                memory: 8Gi
               requests:
-                memory: 4Gi
-                cpu: 500m
+                memory: 8Gi
+                cpu: '1'
             ref:
               resolver: git
               params:
