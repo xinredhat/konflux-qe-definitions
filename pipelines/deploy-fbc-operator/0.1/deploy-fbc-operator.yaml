@@ -179,6 +179,10 @@ spec:
     - name: get-unreleased-bundle
       runAfter:
         - fetch-image-mirror-set
+      when:
+        - input: $(tasks.parse-metadata.results.test-event-type)
+          operator: in
+          values: [ "push", "Push" ]
       taskSpec:
         results:
           - name: unreleasedBundle
