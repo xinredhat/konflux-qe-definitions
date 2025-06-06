@@ -105,8 +105,8 @@ spec:
         Only use this for debugging in secure environments.
       default: 'false'
     - name: timeout
-      description: Auto-destroy timeout
-      default: "''"
+      description: The Timeout value is a duration conforming to Go ParseDuration format. This will set a serverless destroy operation based on this.
+      default: "2h"
 
   results:
     - name: cluster-access-secret
