@@ -32,6 +32,28 @@ spec:
   steps:
     - name: get-pipeline-status
       image: quay.io/konflux-ci/tekton-integration-catalog/utils:latest
+      env:
+        - name: TARGET_GIT_ORGANIZATION
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pac.test.appstudio.openshift.io/url-org']
+        - name: TARGET_GIT_REPOSITORY
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pac.test.appstudio.openshift.io/url-repository']
+        - name: EVENT_TYPE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pac.test.appstudio.openshift.io/event-type']
+        - name: PULL_REQUEST_NUMBER
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['pac.test.appstudio.openshift.io/pull-request']
+        - name: SCENARIO_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['test.appstudio.openshift.io/scenario']
+
       workingDir: /workspace/pipeline-status
       script: |
         #!/bin/bash
@@ -56,6 +78,12 @@ spec:
           echo "⏳ Still waiting for $incomplete TaskRuns to complete..."
           sleep 1
         done
+
+        if [[ "$EVENT_TYPE" != "push" && -n "$PULL_REQUEST_NUMBER" ]]; then
+          EVENT_TYPE="pull_request"
+        elif [[ -z "$PULL_REQUEST_NUMBER" && "$EVENT_TYPE" != "push" ]]; then
+          EVENT_TYPE="push"
+        fi
 
         PLR_STATUS=$(kubectl get pipelinerun "$PLR_NAME" -o jsonpath='{.status.conditions[0].reason}')
 
@@ -87,6 +115,12 @@ spec:
           echo "  \"duration\": \"${DURATION}s\","
 
           echo "  \"status\": \"${PLR_STATUS}\","
+          echo "  \"eventType\": \"$EVENT_TYPE\","
+          echo "  \"scenario\": \"$SCENARIO_NAME\","
+          echo '  "git": {'
+          echo "    \"gitOrganization\": \"$TARGET_GIT_ORGANIZATION\","
+          echo "    \"gitRepository\": \"$TARGET_GIT_REPOSITORY\""
+          echo '  },'
           echo "  \"taskRuns\": ["
 
           TR_NAMES=$(kubectl get taskruns -l tekton.dev/pipelineRun=$PLR_NAME -o jsonpath="{.items[*].metadata.name}")
