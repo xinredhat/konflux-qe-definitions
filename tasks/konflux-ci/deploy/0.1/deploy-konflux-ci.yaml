@@ -87,28 +87,21 @@ spec:
         - input: "$(params.component-name)"
           operator: notin
           values: [ "" ]
+      env:
+        - name: COMPONENT_NAME
+          value: "$(params.component-name)"
+        - name: PR_SOURCE_BRANCH
+          value: "$(params.component-pr-source-branch)"
+        - name: PR_AUTHOR
+          value: "$(params.component-pr-owner)"
+        - name: PR_SHA
+          value: "$(params.component-pr-sha)"
       script: |
         #!/bin/bash
         set -euo pipefail
 
-        PR_SOURCE_BRANCH=$(params.component-pr-source-branch)
-        COMPONENT_NAME="$(params.component-name)"
-        PR_AUTHOR=$(params.component-pr-owner)
-
-        if [ $COMPONENT_NAME == "release-service-catalog" ]; then
-          PR_TO_PAIR=$(curl -s https://api.github.com/repos/konflux-ci/release-service/pulls\?per_page\=100 | jq -r ".[] | select(.user.login == \"$PR_AUTHOR\" and .head.ref == \"$PR_SOURCE_BRANCH\")")
-
-          if [ -n "$PR_TO_PAIR" ]; then
-            PAIRED_PR_SHA=$(jq -r '.head.sha' <<< $PR_TO_PAIR)
-
-            mkdir -p /var/workdir/
-            echo "COMPONENT_NAME=release-service" >> /var/workdir/.env
-            echo "IMAGE_REPO=quay.io/redhat-user-workloads/rhtap-release-2-tenant/release-service/release-service" >> /var/workdir/.env
-            echo "IMAGE_TAG=on-pr-$PAIRED_PR_SHA" >> /var/workdir/.env
-            echo "PR_OWNER=$PR_AUTHOR" >> /var/workdir/.env
-            echo "PR_SHA=$PAIRED_PR_SHA" >> /var/workdir/.env
-          fi
-        fi
+        echo "[INFO] Fetching and executing solve-pr-pairing.sh..."
+        curl -sSfL https://raw.githubusercontent.com/konflux-ci/tekton-integration-catalog/main/scripts/konflux-ci-deploy/solve-pr-pairing.sh | bash
 
     - name: update-kustomization
       image: quay.io/konflux-ci/tekton-integration-catalog/utils:latest
@@ -122,7 +115,9 @@ spec:
         set -euo pipefail
 
         if [ -f /var/workdir/.env ]; then
-          echo "[INFO] Loading env vars from /var/workdir/.env: $(cat /var/workdir/.env)"
+          echo "[INFO] Loading env vars from /var/workdir/.env:"
+          cat /var/workdir/.env
+
           source /var/workdir/.env
         else
           echo "[INFO] Loading env vars from parameters"
