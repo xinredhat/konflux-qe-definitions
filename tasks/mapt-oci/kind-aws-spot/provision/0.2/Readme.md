@@ -48,7 +48,7 @@ This task provisions a single-node Kubernetes cluster on AWS using Mapt. It outp
 | `version`                     | Kubernetes version                                                          | `v1.32`     | ❌       |
 | `tags`                        | AWS resource tags                                                           | `''`        | ❌       |
 | `debug`                       | Enable verbose output (prints credentials; use with caution)               | `false`     | ❌       |
-| `timeout`                     | Auto-destroy timeout (`1h`, `30m`, etc.)                                    | `2h`        | ❌       |
+| `timeout`                     | Auto-destroy timeout (`1h`, `30m`, etc.)                                    | `''`        | ❌       |
 | `oci-ref`                     | Full OCI artifact reference used for storing logs from the Task's Steps    | -        | ✅       |
 | `oci-credentials`             | The secret name containing credentials for container registry where the artifacts will be stored.  | -    | ✅       |
 
