@@ -110,8 +110,8 @@ spec:
         Only use this for debugging in secure environments.
       default: 'false'
     - name: timeout
-      description: The Timeout value is a duration conforming to Go ParseDuration format. This will set a serverless destroy operation based on this.
-      default: "2h"
+      description: Auto-destroy timeout
+      default: "''"
     - name: oci-ref
       type: string
       description: Full OCI artifact reference in a format "quay.io/org/repo:tag. It's used for storing logs from the Task's Steps
