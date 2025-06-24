@@ -5,7 +5,7 @@ metadata:
   name: deploy-konflux-ci
   labels:
     konflux-ci/kind: "true"
-    app.kubernetes.io/version: "0.2"
+    app.kubernetes.io/version: "0.3"
   annotations:
     tekton.dev/pipelines.minVersion: "0.44.x"
     tekton.dev/tags: konflux
@@ -205,19 +205,6 @@ spec:
         } 2>&1 | tee -a $LOG_FILENAME
     - name: deploy-image-controller-and-smee
       image: quay.io/konflux-ci/tekton-integration-catalog/utils:latest
-      env:
-        - name: QUAY_ORG_NAME
-          value: '/build-credentials/quay-org-name'
-        - name: QUAY_ORG_TOKEN
-          value: '/build-credentials/quay-org-token'
-        - name: GH_APP_PRIVATE_KEY
-          value: '/build-credentials/gh-app-private-key'
-        - name: GH_APP_ID
-          value: '/build-credentials/gh-app-id'
-        - name: GH_APP_WEBHOOK_SECRET
-          value: '/build-credentials/gh-app-webhook-secret'
-        - name: SMEE_CHANNEL
-          value: '/build-credentials/smee-channel'
       onError: continue
       workingDir: /var/workdir
       script: |
