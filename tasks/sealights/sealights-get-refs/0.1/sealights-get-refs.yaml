@@ -89,6 +89,11 @@ spec:
           ' cosign_metadata.json)"
         fi
 
+        if [[ -z "$SL_CONTAINER_IMAGE" ]]; then
+          echo "[WARNING] Sealights container image not found from cosign command; defaulting to COMPONENT_CONTAINER_IMAGE $COMPONENT_CONTAINER_IMAGE"
+          SL_CONTAINER_IMAGE="$COMPONENT_CONTAINER_IMAGE"
+        fi
+
         SL_BUILD_NAME="$(jq -r \
             '.payload | @base64d | fromjson | .predicate.buildConfig.tasks[] |
             select(.invocation.environment.labels."konflux-ci/sealights" == "true")
